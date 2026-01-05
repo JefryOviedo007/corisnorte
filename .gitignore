@@ -1,0 +1,11 @@
+# Ignorar archivo de conexión con contraseñas
+config.php
+
+# Ignorar carpetas de dependencias
+/vendor/
+/node_modules/
+
+# Ignorar archivos temporales y de sistema
+.DS_Store
+Thumbs.db
+*.log

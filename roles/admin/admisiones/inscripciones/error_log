@@ -1,0 +1,4 @@
+[23-Dec-2025 19:46:08 America/Bogota] PHP Warning:  Undefined variable $inst in /home1/feceacbc/dev.corisnorte.com/roles/admin/admisiones/inscripciones/procesar_confirmacion.php on line 122
+[23-Dec-2025 19:46:08 America/Bogota] PHP Warning:  Trying to access array offset on null in /home1/feceacbc/dev.corisnorte.com/roles/admin/admisiones/inscripciones/procesar_confirmacion.php on line 122
+[23-Dec-2025 19:47:46 America/Bogota] PHP Warning:  Undefined variable $inst in /home1/feceacbc/dev.corisnorte.com/roles/admin/admisiones/inscripciones/procesar_convocatoria.php on line 128
+[23-Dec-2025 19:47:46 America/Bogota] PHP Warning:  Trying to access array offset on null in /home1/feceacbc/dev.corisnorte.com/roles/admin/admisiones/inscripciones/procesar_convocatoria.php on line 128
