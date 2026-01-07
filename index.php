@@ -30,7 +30,7 @@
     <!-- CONTENIDO -->
     <div class="hero-content container text-center text-white position-relative">
         <h1 class="hero-title mb-3">
-            ¡Nosotros damos el Norte a tu Vida!
+            ¡Nosotros damos el Norte a tu Vida Vida Vida!
         </h1>
 
         <p class="hero-subtitle mb-4">
