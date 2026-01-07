@@ -1,0 +1,5 @@
+---
+deployment:
+  tasks:
+    - export DEPLOYPATH=/home1/feceacbc/dev.corisnorte.com/
+    - /bin/cp -R * $DEPLOYPATH
