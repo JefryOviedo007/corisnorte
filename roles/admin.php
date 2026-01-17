@@ -3,9 +3,23 @@ session_start();
 include 'config.php'; 
 
 // ✅ 1. Identificar Datos de Sesión
-$rol     = $_SESSION['rol'] ?? 'Invitado';
-$nombre  = $_SESSION['nombre'] ?? 'Usuario';
-$sede_id = $_SESSION['sede_id'] ?? null;
+$usuario_id = $_SESSION['id'] ?? null;
+$rol        = $_SESSION['rol'] ?? 'Invitado';
+$nombre     = $_SESSION['nombre'] ?? 'Usuario';
+$sede_id    = $_SESSION['sede_id'] ?? null;
+
+// ✅ 2. CONSULTA DE IMAGEN DE PERFIL
+$img_profile = null;
+if ($usuario_id) {
+    $stmt = $conn->prepare("SELECT img_profile FROM usuarios WHERE id = ?");
+    $stmt->bind_param("i", $usuario_id);
+    $stmt->execute();
+    $res_u = $stmt->get_result();
+    if ($user_data = $res_u->fetch_assoc()) {
+        $img_profile = $user_data['img_profile'];
+    }
+    $stmt->close();
+}
 
 // ✅ 2. CONSULTA REAL DE LA SEDE
 $nombre_sede = "N/A";
@@ -127,12 +141,35 @@ $page = $_GET['page'] ?? 'inicio';
     </div>
     
     <div class="user-info">
-        <div class="text-end d-none d-md-block">
-            <span class="user-name d-block"><?= htmlspecialchars($nombre) ?></span>
-            <small class="text-muted text-uppercase" style="font-size: 0.65rem;"><?= htmlspecialchars($rol) ?></small>
-        </div>
-        <img src="https://ui-avatars.com/api/?name=<?= urlencode($nombre) ?>&background=random&color=fff" alt="User">
+    <div class="text-end d-none d-md-block">
+        <span class="user-name d-block"><?= htmlspecialchars($nombre) ?></span>
+        <small class="text-muted text-uppercase" style="font-size: 0.65rem;"><?= htmlspecialchars($rol) ?></small>
     </div>
+
+    <?php 
+    // 1. Ruta para el NAVEGADOR (HTML/SRC)
+    // Si admin.php y la carpeta admin/ están en el mismo lugar, esta ruta es correcta
+    $url_img = "roles/admin/configuracion/uploads/usuarios/" . $img_profile;
+
+    // 2. Ruta para el SERVIDOR (PHP / file_exists)
+    // __DIR__ obtiene la carpeta actual donde está admin.php
+    $path_fisico = __DIR__ . "/admin/configuracion/uploads/usuarios/" . $img_profile;
+
+    // Depuración actualizada
+    echo "<script>
+        console.group('Prueba de Ruta Absoluta');
+        console.log('Nombre archivo: " . $img_profile . "');
+        console.log('Ruta Servidor: " . $path_fisico . "');
+        console.log('¿Encontrado?: " . (file_exists($path_fisico) ? 'SÍ' : 'NO') . "');
+        console.groupEnd();
+    </script>";
+
+    if (!empty($img_profile) && file_exists($path_fisico)): ?>
+        <img src="<?= $url_img ?>?v=<?= time() ?>" alt="Perfil" class="user-avatar">
+    <?php else: ?>
+        <img src="https://ui-avatars.com/api/?name=<?= urlencode($nombre) ?>&background=random&color=fff" alt="User" class="user-avatar">
+    <?php endif; ?>
+</div>
 </header>
 
 <nav class="sidebar">

@@ -689,7 +689,7 @@ body {
                 <div class="col-md-3 text-center p-3">
                   <img src="<?= $u['img_profile'] 
                     ? '/roles/admin/configuracion/uploads/usuarios/' . $u['img_profile'] 
-                    : '/assets/img/user-default.png' ?>"
+                    : '/assets/img/user-default.webp' ?>"
                     class="rounded-circle border"
                     style="width:90px;height:90px;object-fit:cover">
                 </div>
