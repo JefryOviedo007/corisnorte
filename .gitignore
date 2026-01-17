@@ -9,3 +9,8 @@ config.php
 .DS_Store
 Thumbs.db
 *.log
+error_log
+
+# Carpetas de archivos estáticos y subidas
+assets/
+uploads/
