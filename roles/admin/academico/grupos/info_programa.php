@@ -1,5 +1,4 @@
 <?php
-session_start();
 require_once __DIR__ . "/../../../../config.php";
 
 $grupo_id = $_GET['grupo_id'] ?? null;

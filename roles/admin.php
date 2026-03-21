@@ -1,6 +1,5 @@
 <?php
-session_start();
-include 'config.php'; 
+require_once 'config.php';
 
 // ✅ 1. Identificar Datos de Sesión
 $usuario_id = $_SESSION['id'] ?? null;

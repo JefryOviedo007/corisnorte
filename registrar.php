@@ -1,15 +1,5 @@
 <?php
-$host = "localhost";
-$user = "feceacbc_corisnorte";
-$password = "%.@4(8fW?.}h";
-$dbname = "feceacbc_corisnorte";
-
-// Conexión MySQLi
-$conn = new mysqli($host, $user, $password, $dbname);
-
-if ($conn->connect_error) {
-    die("Error de conexión: " . $conn->connect_error);
-}
+require_once 'config.php';
 
 // Mensaje de resultado
 $mensaje = "";
