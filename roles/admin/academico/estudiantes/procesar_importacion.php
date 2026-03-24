@@ -1,10 +1,18 @@
 <?php
+// 1. Iniciar sesión para poder acceder a $_SESSION['sede_id']
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
 // Evitar bloqueos por tiempo o memoria
 set_time_limit(0);
 ini_set('memory_limit', '512M');
 
 require_once __DIR__ . "/../../../../config.php"; 
 header('Content-Type: application/json');
+
+// Capturamos la sede del usuario que realiza la importación
+$sede_id_usuario = $_SESSION['sede_id'] ?? null;
 
 if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['archivo_excel'])) {
     $file = $_FILES['archivo_excel']['tmp_name'];
@@ -38,6 +46,20 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['archivo_excel'])) {
         $pdo->beginTransaction();
 
         try {
+            // Preparamos la sentencia SQL fuera del bucle para mayor eficiencia
+            $sql = "INSERT INTO personas (
+                        tipo_documento, 
+                        numero_documento, 
+                        nombres_completos, 
+                        telefono, 
+                        correo, 
+                        direccion, 
+                        sede_id,
+                        estado
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, 'Prospecto')";
+            
+            $stmt = $pdo->prepare($sql);
+
             while (($data = fgetcsv($handle, 1000, $delimitador)) !== FALSE) {
                 $fila_numero++;
 
@@ -54,18 +76,16 @@ if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_FILES['archivo_excel'])) {
                 // Validar que el número de documento no sea nulo para insertar
                 if (empty($num_doc)) continue;
 
-                $sql = "INSERT INTO personas (
-                            tipo_documento, 
-                            numero_documento, 
-                            nombres_completos, 
-                            telefono, 
-                            correo, 
-                            direccion, 
-                            estado
-                        ) VALUES (?, ?, ?, ?, ?, ?, 'Prospecto')";
-                
-                $stmt = $pdo->prepare($sql);
-                $stmt->execute([$tipo_doc, $num_doc, $nombres, $telefono, $correo, $direccion]);
+                // Ejecutamos la inserción incluyendo el sede_id capturado
+                $stmt->execute([
+                    $tipo_doc, 
+                    $num_doc, 
+                    $nombres, 
+                    $telefono, 
+                    $correo, 
+                    $direccion, 
+                    $sede_id_usuario
+                ]);
                 
                 $insertados++;
             }

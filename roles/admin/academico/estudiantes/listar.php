@@ -1,10 +1,36 @@
 <?php
-require_once __DIR__ . "/../../../../config.php"; 
+require_once __DIR__ . "/../../../../config.php";
+
+// 1. Control de Sesión y Roles
+if (!isset($_SESSION['id'], $_SESSION['rol'])) {
+    header("Location: /login.php");
+    exit;
+}
+
+$rol = $_SESSION['rol'];
+$sede_id_session = $_SESSION['sede_id'] ?? null;
 
 try {
-    $sql = "SELECT * FROM personas ORDER BY fecha_creacion DESC";
-    $stmt = $pdo->query($sql);
+    // 2. Construcción de la Consulta
+    // Traemos el nombre de la sede haciendo un LEFT JOIN con la tabla sedes
+    $sql = "SELECT p.*, s.nombre AS nombre_sede 
+            FROM personas p
+            LEFT JOIN sedes s ON p.sede_id = s.id";
+    
+    $params = [];
+
+    // 3. Restricción por Rol (Si no es Admin, solo ve su sede)
+    if ($rol !== 'Admin') {
+        $sql .= " WHERE p.sede_id = ?";
+        $params[] = $sede_id_session;
+    }
+
+    $sql .= " ORDER BY p.fecha_creacion DESC";
+    
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
     $estudiantes = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
 } catch (PDOException $e) {
     die("Error al conocer estudiantes: " . $e->getMessage());
 }
@@ -76,10 +102,15 @@ try {
                 <table class="table table-hover align-middle mb-0" id="tablaEstudiantes">
                     <thead>
                         <tr>
-                            <th width="40" class="text-center"><input type="checkbox" class="form-check-input" id="checkAll" onclick="toggleAll(this)"></th>
+                            <th width="40" class="text-center">
+                                <input type="checkbox" class="form-check-input" id="checkAll" onclick="toggleAll(this)">
+                            </th>
                             <th width="50">Foto</th>
                             <th>Documento</th>
                             <th>Nombres Completos</th>
+                            <?php if ($rol === 'Admin'): ?>
+                                <th>Sede</th>
+                            <?php endif; ?>
                             <th>Contacto</th>
                             <th>Estado</th>
                             <th>EPS / Sisbén</th>
@@ -87,10 +118,16 @@ try {
                     </thead>
                     <tbody>
                         <?php if (empty($estudiantes)): ?>
-                            <tr><td colspan="7" class="text-center py-5 text-muted">No se encontraron estudiantes.</td></tr>
+                            <tr>
+                                <td colspan="<?= ($rol === 'Admin') ? '8' : '7' ?>" class="text-center py-5 text-muted">
+                                    No se encontraron estudiantes registrados.
+                                </td>
+                            </tr>
                         <?php else: foreach ($estudiantes as $est): ?>
                             <tr id="row-<?= $est['id'] ?>">
-                                <td class="text-center"><input type="checkbox" class="form-check-input check-estudiante" value="<?= $est['id'] ?>" onclick="checkRow(this)"></td>
+                                <td class="text-center">
+                                    <input type="checkbox" class="form-check-input check-estudiante" value="<?= $est['id'] ?>" onclick="checkRow(this)">
+                                </td>
                                 <td>
                                     <?php 
                                     $path_foto = "roles/admin/academico/estudiantes/uploads/" . $est['foto'];
@@ -100,8 +137,23 @@ try {
                                         <img src="roles/admin/configuracion/uploads/usuarios/user-default.webp" class="student-photo">
                                     <?php endif; ?>
                                 </td>
-                                <td><span class="fw-bold"><?= $est['numero_documento'] ?></span><br><small class="text-muted"><?= $est['tipo_documento'] ?></small></td>
-                                <td class="text-uppercase fw-semibold"><?= htmlspecialchars($est['nombres_completos']) ?></td>
+                                <td>
+                                    <span class="fw-bold"><?= $est['numero_documento'] ?></span><br>
+                                    <small class="text-muted"><?= $est['tipo_documento'] ?></small>
+                                </td>
+                                <td class="text-uppercase fw-semibold">
+                                    <?= htmlspecialchars($est['nombres_completos']) ?>
+                                </td>
+                                
+                                <?php if ($rol === 'Admin'): ?>
+                                    <td>
+                                        <span class="badge bg-light text-dark border">
+                                            <i class="bi bi-geo-alt-fill text-primary"></i> 
+                                            <?= htmlspecialchars($est['nombre_sede'] ?: 'Sin Sede') ?>
+                                        </span>
+                                    </td>
+                                <?php endif; ?>
+
                                 <td>
                                     <small class="d-block"><i class="bi bi-telephone text-muted"></i> <?= $est['telefono'] ?: 'N/A' ?></small>
                                     <small class="text-muted text-lowercase"><?= htmlspecialchars($est['correo'] ?: 'Sin correo') ?></small>
@@ -229,11 +281,25 @@ try {
                 <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
             </div>
             <div class="modal-body p-4">
-                <p class="text-muted small">Selecciona el grupo al que deseas inscribir a los estudiantes seleccionados.</p>
+                <p class="text-muted small">Selecciona la sede y el grupo para inscribir a los estudiantes.</p>
+                
+                <?php if ($rol === 'Admin'): ?>
                 <div class="mb-3">
-                    <label class="form-label fw-bold small">Grupo Destino</label>
+                    <label class="form-label fw-bold small text-primary">1. Filtrar por Sede</label>
+                    <select class="form-select border-primary" id="filtro_sede_modal" onchange="cargarGruposPorSede(this.value)">
+                        <option value="">-- Todas las sedes --</option>
+                        <?php 
+                        $sedes = $pdo->query("SELECT id, nombre FROM sedes ORDER BY nombre ASC")->fetchAll();
+                        foreach($sedes as $s): echo "<option value='{$s['id']}'>{$s['nombre']}</option>"; endforeach;
+                        ?>
+                    </select>
+                </div>
+                <?php endif; ?>
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold small">2. Grupo Destino</label>
                     <select class="form-select" id="select_grupo_destino" required>
-                        <option value="">Cargando grupos...</option>
+                        <option value="">Seleccione primero una sede...</option>
                     </select>
                 </div>
                 <div id="info_seleccion" class="alert alert-info py-2 small mb-0"></div>
@@ -493,30 +559,44 @@ try {
         });
     }
 
-    // --- ACTUALIZAR GRUPO (MODAL Y CARGA) ---
-    function actualizarGrupo() {
-        const ids = getSelectedIds();
-        if (ids.length === 0) return;
+    // Función para cargar los grupos (se llama al abrir modal o al cambiar sede)
+function cargarGruposPorSede(sedeId = '') {
+    const select = document.getElementById('select_grupo_destino');
+    select.innerHTML = '<option value="">Cargando grupos...</option>';
 
-        document.getElementById('info_seleccion').innerText = `${ids.length} estudiante(s) seleccionados para reasignar.`;
-        
-        // Cargar grupos desde el servidor
-        fetch('roles/admin/academico/estudiantes/obtener_grupos.php')
-            .then(res => res.json())
-            .then(res => {
-                const select = document.getElementById('select_grupo_destino');
-                select.innerHTML = '<option value="">-- Seleccione un grupo --</option>';
-                
-                if (res.status === 'success') {
-                    res.data.forEach(g => {
-                        select.innerHTML += `<option value="${g.id}">${g.nombre} (${g.jornada}) - Disponibles: ${g.cupos_disponibles}</option>`;
-                    });
-                    new bootstrap.Modal(document.getElementById('modalActualizarGrupo')).show();
-                } else {
-                    Swal.fire('Error', 'No se pudieron cargar los grupos', 'error');
+    fetch(`roles/admin/academico/estudiantes/obtener_grupos.php?sede_id=${sedeId}`)
+        .then(res => res.json())
+        .then(res => {
+            select.innerHTML = '<option value="">-- Seleccione un grupo --</option>';
+            if (res.status === 'success') {
+                if(res.data.length === 0) {
+                    select.innerHTML = '<option value="">No hay grupos disponibles</option>';
                 }
-            });
-    }
+                res.data.forEach(g => {
+                    select.innerHTML += `<option value="${g.id}">${g.nombre} (${g.jornada}) - Disponibles: ${g.cupos_disponibles}</option>`;
+                });
+            } else {
+                Swal.fire('Error', 'No se pudieron cargar los grupos', 'error');
+            }
+        });
+}
+
+// Modificamos la función principal que abre el modal
+function actualizarGrupo() {
+    const ids = getSelectedIds();
+    if (ids.length === 0) return;
+
+    document.getElementById('info_seleccion').innerText = `${ids.length} estudiante(s) seleccionados.`;
+    
+    // Si existe el filtro de sede (es admin), lo reseteamos al abrir
+    const filtroSede = document.getElementById('filtro_sede_modal');
+    if (filtroSede) filtroSede.value = "";
+
+    // Cargamos los grupos (si es admin cargará todos, si no, el PHP filtrará por su sesión)
+    cargarGruposPorSede(""); 
+    
+    new bootstrap.Modal(document.getElementById('modalActualizarGrupo')).show();
+}
 
     function procesarActualizacionGrupo() {
         const grupoId = document.getElementById('select_grupo_destino').value;
