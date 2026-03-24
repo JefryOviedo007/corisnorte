@@ -559,9 +559,9 @@ function verDetalle(personaId) {
                 // Foto con timestamp para evitar caché
                 const img = document.getElementById('view_foto');
                 if (p.foto) {
-                    img.src = `assets/img/perfiles/${p.foto}?t=${new Date().getTime()}`;
+                    img.src = `roles/admin/academico/estudiantes/uploads/${p.foto}?t=${new Date().getTime()}`;
                 } else {
-                    img.src = 'assets/img/user-default.webp';
+                    img.src = 'roles/admin/configuracion/uploads/usuarios/user-default.webp';
                 }
 
                 // Mostrar el modal (Asegúrate de que el ID del modal sea modalVerEstudiante)
@@ -635,6 +635,8 @@ function abrirModalPago(personaId, concepto, montoPendiente) {
             const referencia = elRef ? elRef.value : '';
             let efec = 0; 
             let trans = 0;
+            
+            // Leemos el valor del input, permitiendo que el usuario digite montos superiores
             let montoFinal = parseFloat(elMontoTotal.value) || 0;
 
             if (metodo === 'Dividido') {

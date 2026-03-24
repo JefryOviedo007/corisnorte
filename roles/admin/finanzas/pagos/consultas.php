@@ -4,8 +4,6 @@ require_once "../../../../config.php";
 
 $action = $_GET['action'] ?? '';
 
-// ... (getSedes y getGrupos se mantienen igual) ...
-
 if ($action == 'getSedes') {
     $stmt = $pdo->query("SELECT id, nombre FROM sedes ORDER BY nombre");
     echo json_encode($stmt->fetchAll(PDO::FETCH_ASSOC));
@@ -13,7 +11,7 @@ if ($action == 'getSedes') {
 }
 
 if ($action == 'getGrupos') {
-    $sede_id = $_GET['sede_id'];
+    $sede_id = $_GET['sede_id'] ?? 0;
     $stmt = $pdo->prepare("SELECT g.id, g.nombre, p.nombre as programa FROM grupos g 
                             INNER JOIN programas p ON g.programa_id = p.id WHERE g.sede_id = ?");
     $stmt->execute([$sede_id]);
@@ -22,12 +20,14 @@ if ($action == 'getGrupos') {
 }
 
 if ($action == 'getTabla') {
-    $grupo_id = $_GET['grupo_id'];
+    $grupo_id = $_GET['grupo_id'] ?? 0;
     
+    // 1. Obtener configuración del programa (costos y duración)
     $stmt = $pdo->prepare("SELECT p.* FROM programas p JOIN grupos g ON g.programa_id = p.id WHERE g.id = ?");
     $stmt->execute([$grupo_id]);
     $config = $stmt->fetch(PDO::FETCH_ASSOC);
 
+    // 2. Obtener estudiantes del grupo
     $stmt = $pdo->prepare("SELECT p.id, p.nombres_completos FROM inscripciones i 
                             INNER JOIN personas p ON i.persona_id = p.id 
                             WHERE i.grupo_id = ? AND i.estado = 'En formación'");
@@ -39,6 +39,7 @@ if ($action == 'getTabla') {
         exit;
     }
 
+    // Cabecera de la tabla
     $html = '<table class="table table-hover align-middle">';
     $html .= '<thead>
                 <tr>
@@ -47,24 +48,20 @@ if ($action == 'getTabla') {
                     <th colspan="'.$config['duracion'].'" class="text-center">Control de Mensualidades</th>
                 </tr>
                 <tr>
-                    <th class="text-center" style="background-color:#4a5568 !important">Inscripción</th>
-                    <th class="text-center" style="background-color:#4a5568 !important">Matrícula</th>';
-    for($i=1; $i<=$config['duracion']; $i++) $html .= "<th class='text-center' style='background-color:#4a5568 !important'>Mes $i</th>";
+                    <th class="text-center" style="background-color:#4a5568 !important; color:white;">Inscripción</th>
+                    <th class="text-center" style="background-color:#4a5568 !important; color:white;">Matrícula</th>';
+    
+    for($i=1; $i<=$config['duracion']; $i++) {
+        $html .= "<th class='text-center' style='background-color:#4a5568 !important; color:white;'>Mes $i</th>";
+    }
     $html .= '</tr></thead><tbody>';
 
     foreach ($estudiantes as $est) {
-        // Obtenemos los pagos agrupados
+        // 3. Obtener sumatoria de pagos completados por concepto
         $stmt_p = $pdo->prepare("SELECT concepto, SUM(monto) as total FROM pagos WHERE persona_id = ? AND estado = 'Completado' GROUP BY concepto");
         $stmt_p->execute([$est['id']]);
-        $pagos_raw = $stmt_p->fetchAll(PDO::FETCH_KEY_PAIR);
+        $pagos = $stmt_p->fetchAll(PDO::FETCH_KEY_PAIR);
 
-        // NORMALIZACIÓN DE CLAVES: Quitamos tildes para evitar errores de lectura en el array
-        $pagos = [];
-        foreach($pagos_raw as $key => $val) {
-            // Convertimos 'Pensión' a 'Pension' o simplemente manejamos la tilde con cuidado
-            $pagos[$key] = $val;
-        }
-        
         $html .= "<tr>
                     <td class='ps-3'>
                         <div class='d-flex justify-content-between align-items-center'>
@@ -75,28 +72,33 @@ if ($action == 'getTabla') {
                         </div>
                     </td>";
         
-        // Cargos Administrativos
+        // --- Renderizado de Cargos Fijos ---
         $html .= renderCelda($pagos['Inscripción'] ?? 0, $config['costo_inscripcion'], $est['id'], 'Inscripción');
         $html .= renderCelda($pagos['Matrícula'] ?? 0, $config['costo_matricula'], $est['id'], 'Matrícula');
 
-        // Lógica de Mensualidades (Aquí estaba el fallo)
-        // Buscamos 'Pensión' (con tilde, tal cual está en tu ENUM)
-        $saldo_p = (float)($pagos['Pensión'] ?? 0); 
-        $cuota = (float)$config['mensualidad'];
+        // --- Lógica de Mensualidades en CASCADA ---
+        $saldo_disponible = (float)($pagos['Pensión'] ?? 0); 
+        $cuota_mensual = (float)$config['mensualidad'];
+        $duracion = (int)$config['duracion'];
 
-        for ($i=1; $i<=$config['duracion']; $i++) {
-            $monto_este_mes = 0;
-            if ($saldo_p >= $cuota) { 
-                $monto_este_mes = $cuota; 
-                $saldo_p -= $cuota; 
-            } elseif ($saldo_p > 0) { 
-                $monto_este_mes = $saldo_p; 
-                $saldo_p = 0; 
+        for ($i = 1; $i <= $duracion; $i++) {
+            $monto_asignado_a_este_mes = 0;
+
+            if ($saldo_disponible >= $cuota_mensual) {
+                // El saldo cubre la cuota completa de este mes
+                $monto_asignado_a_este_mes = $cuota_mensual;
+                $saldo_disponible -= $cuota_mensual;
+            } elseif ($saldo_disponible > 0) {
+                // El saldo solo cubre una parte (Abono)
+                $monto_asignado_a_este_mes = $saldo_disponible;
+                $saldo_disponible = 0;
+            } else {
+                // Ya no hay dinero para los meses siguientes
+                $monto_asignado_a_este_mes = 0;
             }
-            
-            // Importante: El concepto que enviamos al modal de pago debe ser "Mes $i" 
-            // para que en el backend se guarde como 'Pensión' pero sepamos qué mes es en la referencia.
-            $html .= renderCelda($monto_este_mes, $cuota, $est['id'], "Pensión - Mes $i");
+
+            // Enviamos "Pensión - Mes $i" como sugerencia de concepto al modal
+            $html .= renderCelda($monto_asignado_a_este_mes, $cuota_mensual, $est['id'], "Pensión - Mes $i");
         }
         $html .= "</tr>";
     }
@@ -105,42 +107,44 @@ if ($action == 'getTabla') {
     exit;
 }
 
+/**
+ * Función para renderizar cada celda de la tabla con su estado (Pagado, Abono, Debe)
+ */
 function renderCelda($pagado, $costo, $persona_id, $concepto) {
-    if ($costo <= 0) return "<td class='text-center text-muted'>-</td>";
+    if ($costo <= 0) return "<td class='text-center text-muted' style='background-color: #f8f9fa;'>-</td>";
     
     $pagado = (float)$pagado;
     $costo = (float)$costo;
     $pendiente = $costo - $pagado;
 
-    $html = "<td class='text-center' style='min-width: 100px;'>";
+    $html = "<td class='text-center' style='min-width: 110px;'>";
     
     if ($pagado >= $costo) {
-        // PAGADO TOTAL
-        $html .= "<span class='badge bg-success-subtle text-success border border-success-subtle px-2 mb-1'>
+        // ESTADO: PAGADO
+        $html .= "<span class='badge bg-success-subtle text-success border border-success-subtle px-2 mb-1' style='font-size: 0.65rem;'>
                     <i class='bi bi-check-circle-fill'></i> PAGADO
                   </span>
-                  <div style='font-size: 0.7rem;' class='text-success fw-bold'>$".number_format($pagado, 0)."</div>";
+                  <div style='font-size: 0.75rem;' class='text-success fw-bold'>$".number_format($pagado, 0)."</div>";
     } else {
-        // DEBE O ABONO
+        // ESTADO: ABONO O DEBE
         if ($pagado > 0) {
-            $html .= "<span class='badge bg-warning-subtle text-dark border border-warning-subtle px-2'>
+            $html .= "<span class='badge bg-warning-subtle text-dark border border-warning-subtle px-2 mb-1' style='font-size: 0.65rem;'>
                         <i class='bi bi-clock-history'></i> ABONO
                       </span>";
         } else {
-            $html .= "<span class='badge bg-danger-subtle text-danger border border-danger-subtle px-2'>
+            $html .= "<span class='badge bg-danger-subtle text-danger border border-danger-subtle px-2 mb-1' style='font-size: 0.65rem;'>
                         <i class='bi bi-exclamation-triangle'></i> DEBE
                       </span>";
         }
         
-        // Valor pendiente y botón de pago
-        $html .= "<div class='d-flex flex-column align-items-center'>
-                    <div style='font-size: 0.7rem;' class='text-danger fw-bold'>$".number_format($pendiente, 0)."
-                        <button class='btn btn-sm btn-outline-success border-0 p-0' 
-                                title='Pagar saldo' 
-                                onclick=\"abrirModalPago({$persona_id}, '{$concepto}', {$pendiente})\">
-                            <i class='bi bi-cash-stack fs-5'></i>
-                        </button>
-                    </div>
+        // Mostrar saldo pendiente y botón para pagar
+        $html .= "<div class='d-flex flex-column align-items-center mt-1'>
+                    <div style='font-size: 0.75rem;' class='text-danger fw-bold'>$".number_format($pendiente, 0)."</div>
+                    <button class='btn btn-sm btn-outline-success border-0 p-0 mt-1' 
+                            title='Registrar pago para $concepto' 
+                            onclick=\"abrirModalPago({$persona_id}, '{$concepto}', {$pendiente})\">
+                        <i class='bi bi-cash-stack fs-5'></i>
+                    </button>
                   </div>";
     }
     

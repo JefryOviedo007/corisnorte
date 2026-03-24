@@ -1,5 +1,4 @@
 <?php
-session_start();
 require_once __DIR__ . "/../../../../config.php";
 header('Content-Type: application/json');
 
@@ -52,9 +51,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $concepto_enum = 'Otros';
         if (stripos($concepto_recibido, 'Pensi') !== false || stripos($concepto_recibido, 'Mes') !== false) {
             $concepto_enum = 'Pensión';
+        } elseif (stripos($concepto_recibido, 'Inscripción') !== false || stripos($concepto_recibido, 'Inscripción') !== false) {
+            $concepto_enum = 'Inscripción';
         } elseif (stripos($concepto_recibido, 'Matrícula') !== false || stripos($concepto_recibido, 'Matricula') !== false) {
             $concepto_enum = 'Matrícula';
-        } elseif (stripos($concepto_recibido, 'Grado') !== false) {
+        }elseif (stripos($concepto_recibido, 'Grado') !== false) {
             $concepto_enum = 'Derechos de Grado';
         } elseif (stripos($concepto_recibido, 'Seminario') !== false) {
             $concepto_enum = 'Seminario';
@@ -136,7 +137,7 @@ function enviarCorreoMensualidad($data, $inst, $referencia, $metodo, $efectivo, 
     $message = '
     <html>
     <body style="margin:0;padding:0;background-color:#f4f7f9;font-family:Arial,sans-serif;">
-    <table width="100%" bgcolor="#f4f7f9" style="padding:20px;">
+    <table width="100%" bgcolor="#f4f7f9" style="padding:20px;"> 
         <tr><td align="center">
             <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;border-radius:8px;overflow:hidden;max-width:600px;box-shadow:0 4px 6px rgba(0,0,0,0.1);">
                 <tr>
