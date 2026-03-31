@@ -195,7 +195,7 @@ $page = $_GET['page'] ?? 'inicio';
             </a>
             <div class="collapse <?= in_array($page, ['niveles','carreras','grupos','estudiantes']) ? 'show' : '' ?> ps-3" id="menuAcademico">
                 <a class="nav-link <?= $page == 'niveles' ? 'active' : '' ?>" href="?page=niveles">Niveles</a>
-                <a class="nav-link <?= $page == 'carreras' ? 'active' : '' ?>" href="?page=carreras">Carreras</a>
+                <a class="nav-link <?= $page == 'carreras' ? 'active' : '' ?>" href="?page=carreras">Grados</a>
                 <a class="nav-link <?= $page == 'grupos' ? 'active' : '' ?>" href="?page=grupos">Grupos</a>
                 <a class="nav-link <?= $page == 'estudiantes' ? 'active' : '' ?>" href="?page=estudiantes">Estudiantes</a>
             </div>

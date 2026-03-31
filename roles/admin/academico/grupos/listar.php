@@ -343,7 +343,7 @@ $grupos = $stmt->fetchAll(PDO::FETCH_ASSOC);
               <th width="35" class="text-center">✔</th>
               <th>Grupo</th>
               <th>Nivel</th>
-              <th>Programa</th>
+              <th>Grado</th>
               <th>Jornada</th>
               <?php if ($rol === 'Admin'): ?>
                 <th>Sede</th>

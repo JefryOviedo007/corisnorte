@@ -268,7 +268,7 @@ $niveles = $pdo->query("SELECT * FROM niveles_formacion WHERE estado='Activo'")-
 <div class="container">
 
   <div class="d-flex justify-content-between align-items-center mb-3">
-    <h3><i class="bi bi-mortarboard-fill"></i> Programas / Carreras</h3>
+    <h3><i class="bi bi-mortarboard-fill"></i> Grados</h3>
 
     <div>
       <button class="btn btn-primary" onclick="abrirModalCrear()">

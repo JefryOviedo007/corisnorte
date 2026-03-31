@@ -315,9 +315,8 @@ $niveles = $pdo->query("SELECT * FROM niveles_formacion ORDER BY id DESC")->fetc
             <select name="nombre" class="form-control" required>
               <option value="">Seleccione</option>
               <option>Bachillerato</option>
-              <option>Técnico</option>
-              <option>Tecnólogo</option>
-              <option>Profesional</option>
+              <option>Primaria</option>
+              <option>Preescolar</option>
             </select>
           </div>
 
