@@ -132,7 +132,7 @@ $page = $_GET['page'] ?? 'inicio';
     
 <header class="topbar">
     <div class="brand-area">
-        <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQnDAMGIVeHB0xgjDiYzjiMJtYbumIPjy9SVQ&s" alt="Logo">
+        <img src="../assets/img/logo-corisnorte-text.png" alt="Logo">
     </div>
 
     <div class="sede-badge d-none d-md-block">
@@ -173,8 +173,8 @@ $page = $_GET['page'] ?? 'inicio';
 
 <nav class="sidebar">
     <div class="text-center px-3">
-        <img src="https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQnDAMGIVeHB0xgjDiYzjiMJtYbumIPjy9SVQ&s" alt="Logo" class="img-fluid">
-        <h5>Instituto San Juan</h5>
+        <img src="../assets/img/logo.png" alt="Logo" class="img-fluid">
+        <h5>Corisnorte</h5>
         <small style="color: <?= $text_color ?>; opacity: 0.7;"><?= $_SESSION['nombre_usuario'] ?? '' ?></small>
     </div>
 
@@ -195,7 +195,7 @@ $page = $_GET['page'] ?? 'inicio';
             </a>
             <div class="collapse <?= in_array($page, ['niveles','carreras','grupos','estudiantes']) ? 'show' : '' ?> ps-3" id="menuAcademico">
                 <a class="nav-link <?= $page == 'niveles' ? 'active' : '' ?>" href="?page=niveles">Niveles</a>
-                <a class="nav-link <?= $page == 'carreras' ? 'active' : '' ?>" href="?page=carreras">Grados</a>
+                <a class="nav-link <?= $page == 'carreras' ? 'active' : '' ?>" href="?page=carreras">Carreras</a>
                 <a class="nav-link <?= $page == 'grupos' ? 'active' : '' ?>" href="?page=grupos">Grupos</a>
                 <a class="nav-link <?= $page == 'estudiantes' ? 'active' : '' ?>" href="?page=estudiantes">Estudiantes</a>
             </div>

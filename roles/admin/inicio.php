@@ -51,7 +51,7 @@ try {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Institucional</title>
+    <title>Dashboard Institucional | Eleva Academic</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
     <style>
@@ -81,7 +81,7 @@ try {
 <div class="container main-container">
     <div class="row mb-4">
         <div class="col-12 text-center text-md-start">
-            <h2 class="fw-bold">Análisis Institucional</h2>
+            <h2 class="fw-bold">Panel de Control</h2>
             <p class="text-muted small">Bienvenido, <?= $nombre_usuario ?>. Aquí tienes el rendimiento académico y financiero.</p>
         </div>
     </div>
@@ -174,7 +174,7 @@ try {
             <div class="card card-custom overflow-hidden">
                 <div class="card-header bg-white py-3 border-0 d-flex justify-content-between align-items-center">
                     <h6 class="fw-bold mb-0">Gestión de Grupos (En Formación)</h6>
-                    <a href="dashboard.php?page=grupos" class="btn btn-light btn-sm fw-bold border">Ver Todos</a>
+                    <a href="grupos.php" class="btn btn-light btn-sm fw-bold border">Ver Todos</a>
                 </div>
                 <div class="table-responsive">
                     <table class="table table-elite align-middle mb-0">
@@ -221,7 +221,6 @@ try {
     </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 <script>
     // Configuración Global de Chart.js para un look limpio
