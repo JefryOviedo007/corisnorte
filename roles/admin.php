@@ -134,10 +134,6 @@ $page = $_GET['page'] ?? 'inicio';
     <div class="brand-area">
         <img src="../assets/img/logo-corisnorte-text.png" alt="Logo">
     </div>
-
-    <div class="sede-badge d-none d-md-block">
-        <i class="bi bi-geo-alt-fill me-1"></i> Sede: <?= htmlspecialchars($nombre_sede) ?>
-    </div>
     
     <div class="user-info">
     <div class="text-end d-none d-md-block">
@@ -175,7 +171,7 @@ $page = $_GET['page'] ?? 'inicio';
     <div class="text-center px-3">
         <img src="../assets/img/logo.png" alt="Logo" class="img-fluid">
         <h5>Corisnorte</h5>
-        <small style="color: <?= $text_color ?>; opacity: 0.7;"><?= $_SESSION['nombre_usuario'] ?? '' ?></small>
+        <small style="color: <?= $text_color ?>; opacity: 0.7;"><i class="bi bi-geo-alt-fill me-1"></i> Sede: <?= htmlspecialchars($nombre_sede) ?></small>
     </div>
 
     <ul class="nav flex-column mt-4">
