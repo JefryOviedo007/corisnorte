@@ -4,21 +4,7 @@ require_once __DIR__ . "/../../../config.php";
 // 🔹 Traer datos institución (solo un registro)
 $institucion = $pdo->query("SELECT * FROM institucion LIMIT 1")->fetch(PDO::FETCH_ASSOC);
 ?>
-<!DOCTYPE html>
-<html lang="es">
-<head>
-<meta charset="UTF-8">
-<title>Configuración General</title>
 
-<!-- ✅ BOOTSTRAP -->
-<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
-
-<!-- ✅ SWEETALERT -->
-<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-
-<!-- ✅ FUENTE -->
-<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
 
 <style>
 /* =========================
@@ -224,11 +210,8 @@ body {
 }
 
 </style>
-</head>
 
-<body>
-
-<div class="container py-4 configuracion-module">
+<div class="container-fluid py-4 configuracion-module">
 
   <h3 class="fw-bold text-primary mb-4">
     <i class="bi bi-gear-fill"></i> Configuración General

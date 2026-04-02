@@ -46,14 +46,7 @@ try {
 } catch (Exception $e) { die("Error en el sistema: " . $e->getMessage()); }
 ?>
 
-<!DOCTYPE html>
-<html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Dashboard Institucional | Eleva Academic</title>
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css">
+
     <style>
         :root { --primary-dark: #1e293b; --accent: #3b82f6; }
         body { background: #f1f5f9; font-family: 'Inter', system-ui, sans-serif; color: #334155; }
@@ -75,8 +68,6 @@ try {
         .table-elite th { font-size: 0.7rem; text-transform: uppercase; color: #64748b; padding: 1rem; }
         .progress { background-color: #f1f5f9; border-radius: 10px; }
     </style>
-</head>
-<body>
 
 <div class="container main-container">
     <div class="row mb-4">
@@ -222,7 +213,7 @@ try {
 </div>
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+ <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
     // Configuración Global de Chart.js para un look limpio
     Chart.defaults.font.family = "'Inter', sans-serif";
