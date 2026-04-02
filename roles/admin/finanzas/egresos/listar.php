@@ -1,14 +1,56 @@
 <?php
-require_once __DIR__ . "/../../../../config.php"; 
+require_once __DIR__ . "/../../../../config.php";
+
+$rol     = $_SESSION['rol']     ?? '';
+$sede_id = $_SESSION['sede_id'] ?? null;
+
+// Si es Admin, cargamos todas las sedes para el filtro
+$sedes = [];
+if ($rol === 'Admin') {
+    $sedes = $pdo->query("SELECT id, nombre FROM sedes WHERE estado = 'Activa' ORDER BY nombre ASC")
+                 ->fetchAll(PDO::FETCH_ASSOC);
+}
+
+// Sede seleccionada en el filtro (solo Admin puede cambiarla)
+$sede_filtro = ($rol === 'Admin')
+    ? (!empty($_GET['sede_id']) ? (int)$_GET['sede_id'] : null)
+    : (int)$sede_id;
+
+// Parámetros GET sin sede_id (para preservar la URL al filtrar)
+$params_base = $_GET;
+unset($params_base['sede_id']);
+$url_base    = '?' . http_build_query($params_base);
+$url_limpiar = $url_base;
 
 try {
-    // Consulta de egresos (asumiendo tabla 'egresos')
-    $sql = "SELECT e.*, p.nombres_completos AS proveedor 
-            FROM egresos e 
-            LEFT JOIN personas p ON e.persona_id = p.id 
-            ORDER BY e.fecha_egreso DESC";
-    $stmt = $pdo->query($sql);
+    if ($rol === 'Admin' && !$sede_filtro) {
+        // Admin sin filtro → ve todos los egresos de todas las sedes
+        $sql = "SELECT e.*, 
+                       p.nombres_completos AS proveedor,
+                       s.nombre            AS sede_nombre
+                FROM egresos e
+                LEFT JOIN personas p ON e.persona_id = p.id
+                LEFT JOIN usuarios u ON e.usuario_id = u.id
+                LEFT JOIN sedes s    ON u.sede_id     = s.id
+                ORDER BY e.fecha_egreso DESC";
+        $stmt = $pdo->query($sql);
+    } else {
+        // Admin con sede seleccionada, o Coordinador/Secretaria → solo su sede
+        $sql = "SELECT e.*, 
+                       p.nombres_completos AS proveedor,
+                       s.nombre            AS sede_nombre
+                FROM egresos e
+                LEFT JOIN personas p ON e.persona_id = p.id
+                LEFT JOIN usuarios u ON e.usuario_id = u.id
+                LEFT JOIN sedes s    ON u.sede_id     = s.id
+                WHERE u.sede_id = ?
+                ORDER BY e.fecha_egreso DESC";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([$sede_filtro]);
+    }
+
     $egresos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
 } catch (PDOException $e) {
     die("Error al consultar egresos: " . $e->getMessage());
 }
@@ -48,9 +90,40 @@ try {
         <h3 class="text-danger">
             <i class="bi bi-cart-dash"></i> Egresos / Gastos
         </h3>
-        <button class="btn btn-danger" onclick="nuevoEgreso()">
-            <i class="bi bi-plus-circle"></i> Nuevo Egreso
-        </button>
+
+        <div class="d-flex gap-2 align-items-center">
+            <?php if ($rol === 'Admin'): ?>
+            <form method="GET" action="" class="d-flex align-items-center gap-2 mb-0">
+
+                <?php foreach ($params_base as $key => $value): ?>
+                    <input type="hidden" name="<?= htmlspecialchars($key) ?>" value="<?= htmlspecialchars($value) ?>">
+                <?php endforeach; ?>
+
+                <label class="fw-bold small mb-0 text-nowrap">
+                    <i class="bi bi-building me-1"></i> Sede:
+                </label>
+                <select name="sede_id" class="form-select form-select-sm" style="max-width:220px;" onchange="this.form.submit()">
+                    <option value="">— Todas las sedes —</option>
+                    <?php foreach ($sedes as $sede): ?>
+                        <option value="<?= $sede['id'] ?>" <?= $sede_filtro == $sede['id'] ? 'selected' : '' ?>>
+                            <?= htmlspecialchars($sede['nombre']) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+
+                <?php if ($sede_filtro): ?>
+                    <a href="<?= $url_limpiar ?>" class="btn btn-sm btn-outline-secondary">
+                        <i class="bi bi-x-circle"></i> Limpiar
+                    </a>
+                <?php endif; ?>
+
+            </form>
+            <?php endif; ?>
+
+            <button class="btn btn-danger" onclick="nuevoEgreso()">
+                <i class="bi bi-plus-circle"></i> Nuevo Egreso
+            </button>
+        </div>
     </div>
 
     <div class="card p-3 shadow-sm">
@@ -60,43 +133,75 @@ try {
                     <thead>
                         <tr>
                             <th>Fecha</th>
+                            <?php if ($rol === 'Admin'): ?>
+                                <th>Sede</th>
+                            <?php endif; ?>
                             <th>Concepto / Gasto</th>
-                            <th>Proveedor / Tercero</th>
+                            <th>Proveedor / Colaborador</th>
                             <th>Método</th>
                             <th class="text-end">Monto Total</th>
-                            <th class="text-center">Estado</th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php if (empty($egresos)): ?>
                             <tr>
-                                <td colspan="7" class="text-center py-4 text-muted">No hay egresos registrados.</td>
+                                <td colspan="<?= $rol === 'Admin' ? 7 : 6 ?>" class="text-center py-4 text-muted">
+                                    <i class="bi bi-info-circle me-2"></i>No hay egresos registrados.
+                                </td>
                             </tr>
                         <?php else: ?>
                             <?php foreach ($egresos as $eg): ?>
                                 <tr>
                                     <td class="small"><?= date('d/m/Y h:i A', strtotime($eg['fecha_egreso'])) ?></td>
+
+                                    <?php if ($rol === 'Admin'): ?>
+                                        <td class="small">
+                                            <?php if (!empty($eg['sede_nombre'])): ?>
+                                                <span class="badge bg-light text-dark border">
+                                                    <i class="bi bi-building me-1"></i><?= htmlspecialchars($eg['sede_nombre']) ?>
+                                                </span>
+                                            <?php else: ?>
+                                                <span class="badge bg-warning-subtle text-warning border border-warning">
+                                                    <i class="bi bi-exclamation-triangle me-1"></i>Sin usuario
+                                                </span>
+                                            <?php endif; ?>
+                                        </td>
+                                    <?php endif; ?>
+
                                     <td>
                                         <span class="fw-bold d-block text-uppercase small"><?= htmlspecialchars($eg['concepto']) ?></span>
-                                        <small class="text-muted">Ref: <?= $eg['referencia'] ?></small>
+                                        <?php if (!empty($eg['referencia'])): ?>
+                                            <small class="text-muted">Ref: <?= htmlspecialchars($eg['referencia']) ?></small>
+                                        <?php endif; ?>
                                     </td>
-                                    <td><?= $eg['proveedor'] ?? htmlspecialchars($eg['observaciones'] ?: 'Gasto General') ?></td>
+
+                                    <td>
+                                        <?php
+                                            $nombreMostrar = $eg['proveedor'] ?? $eg['observaciones'] ?? null;
+                                            if ($nombreMostrar):
+                                                $nombre = htmlspecialchars(mb_convert_case(trim($nombreMostrar), MB_CASE_TITLE, 'UTF-8'));
+                                        ?>
+                                                <span class="fw-semibold"><?= $nombre ?></span>
+                                                <?php if ($eg['persona_id']): ?>
+                                                    <i class="bi bi-patch-check-fill text-danger ms-1" title="Persona registrada" style="font-size:.85rem;"></i>
+                                                <?php endif; ?>
+                                        <?php else: ?>
+                                            <span class="text-muted fst-italic">Gasto General</span>
+                                        <?php endif; ?>
+                                    </td>
+
                                     <td>
                                         <?php if ($eg['metodo_pago'] === 'Dividido'): ?>
                                             <span class="badge bg-info text-dark">
-                                                E: $<?= number_format($eg['monto_efectivo'], 0) ?> | T: $<?= number_format($eg['monto_transferencia'], 0) ?>
+                                                E: $<?= number_format($eg['monto_efectivo'], 0, ',', '.') ?> | T: $<?= number_format($eg['monto_transferencia'], 0, ',', '.') ?>
                                             </span>
                                         <?php else: ?>
                                             <span class="badge bg-light text-dark border"><?= $eg['metodo_pago'] ?></span>
                                         <?php endif; ?>
                                     </td>
+
                                     <td class="text-end fw-bold text-danger">
                                         $<?= number_format($eg['monto'], 0, ',', '.') ?>
-                                    </td>
-                                    <td class="text-center">
-                                        <span class="badge <?= $eg['estado'] === 'Activo' ? 'bg-danger' : 'bg-secondary' ?>">
-                                            <?= $eg['estado'] ?>
-                                        </span>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
@@ -123,7 +228,7 @@ try {
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label fw-bold small">PAGADO A (PROVEEDOR/PERSONA)</label>
+                        <label class="form-label fw-bold small">PAGADO A (PROVEEDOR/COLABORADOR)</label>
                         <input type="text" name="proveedor_nombre" class="form-control" placeholder="Nombre de quien recibe el dinero">
                     </div>
 

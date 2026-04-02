@@ -223,10 +223,8 @@ $page = $_GET['page'] ?? 'inicio';
             </a>
             <div class="collapse <?= in_array($page, ['pagos','ingresos','egresos','caja_diaria']) ? 'show' : '' ?> ps-3" id="menuFinanzas">
                 <a class="nav-link <?= $page == 'pagos' ? 'active' : '' ?>" href="?page=pagos">Pagos</a>
-                <?php if($rol == 'Admin'): ?>
-                    <a class="nav-link <?= $page == 'ingresos' ? 'active' : '' ?>" href="?page=ingresos">Ingresos</a>
-                    <a class="nav-link <?= $page == 'egresos' ? 'active' : '' ?>" href="?page=egresos">Egresos</a>
-                <?php endif; ?>
+                <a class="nav-link <?= $page == 'ingresos' ? 'active' : '' ?>" href="?page=ingresos">Ingresos</a>
+                <a class="nav-link <?= $page == 'egresos' ? 'active' : '' ?>" href="?page=egresos">Egresos</a>
                 <a class="nav-link <?= $page == 'caja_diaria' ? 'active' : '' ?>" href="?page=caja_diaria">Caja Diaria</a>
             </div>
         </li>

@@ -1,14 +1,56 @@
 <?php
-require_once __DIR__ . "/../../../../config.php"; // Ajusta la ruta según tu proyecto
+require_once __DIR__ . "/../../../../config.php";
 
-// Consulta de ingresos
+$rol     = $_SESSION['rol']     ?? '';
+$sede_id = $_SESSION['sede_id'] ?? null;
+
+// Si es Admin, cargamos todas las sedes para el filtro
+$sedes = [];
+if ($rol === 'Admin') {
+    $sedes = $pdo->query("SELECT id, nombre FROM sedes WHERE estado = 'Activa' ORDER BY nombre ASC")
+                 ->fetchAll(PDO::FETCH_ASSOC);
+}
+
+// Sede seleccionada en el filtro (solo Admin puede cambiarla)
+$sede_filtro = ($rol === 'Admin')
+    ? (!empty($_GET['sede_id']) ? (int)$_GET['sede_id'] : null)
+    : (int)$sede_id;
+
+// Parámetros GET sin sede_id (para preservar la URL al filtrar)
+$params_base = $_GET;
+unset($params_base['sede_id']);
+$url_base    = '?' . http_build_query($params_base);
+$url_limpiar = $url_base;
+
 try {
-    $sql = "SELECT i.*, p.nombres_completos AS cliente 
-            FROM ingresos i 
-            LEFT JOIN personas p ON i.persona_id = p.id 
-            ORDER BY i.fecha_ingreso DESC";
-    $stmt = $pdo->query($sql);
+    if ($rol === 'Admin' && !$sede_filtro) {
+        // Admin sin filtro → ve todos los ingresos de todas las sedes
+        $sql = "SELECT i.*, 
+                       p.nombres_completos AS cliente,
+                       s.nombre            AS sede_nombre
+                FROM ingresos i
+                LEFT JOIN personas p ON i.persona_id = p.id
+                LEFT JOIN usuarios u ON i.usuario_id = u.id
+                LEFT JOIN sedes s    ON u.sede_id     = s.id
+                ORDER BY i.fecha_ingreso DESC";
+        $stmt = $pdo->query($sql);
+    } else {
+        // Admin con sede seleccionada, o Coordinador/Secretaria → solo su sede
+        $sql = "SELECT i.*, 
+                       p.nombres_completos AS cliente,
+                       s.nombre            AS sede_nombre
+                FROM ingresos i
+                LEFT JOIN personas p ON i.persona_id = p.id
+                LEFT JOIN usuarios u ON i.usuario_id = u.id
+                LEFT JOIN sedes s    ON u.sede_id     = s.id
+                WHERE u.sede_id = ?
+                ORDER BY i.fecha_ingreso DESC";
+        $stmt = $pdo->prepare($sql);
+        $stmt->execute([$sede_filtro]);
+    }
+
     $ingresos = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
 } catch (PDOException $e) {
     die("Error al consultar ingresos: " . $e->getMessage());
 }
@@ -272,9 +314,36 @@ try {
     </h3>
 
     <div class="d-flex gap-2">
-            <button class="btn btn-primary" onclick="nuevoIngreso()">
-                <i class="bi bi-plus-circle"></i>Nuevo Ingreso
-            </button>
+        <?php if ($rol === 'Admin'): ?>
+        <form method="GET" action="" class="d-flex align-items-center gap-2 mb-0">
+
+            <?php foreach ($params_base as $key => $value): ?>
+                <input type="hidden" name="<?= htmlspecialchars($key) ?>" value="<?= htmlspecialchars($value) ?>">
+            <?php endforeach; ?>
+
+            <label class="fw-bold small mb-0 text-nowrap">
+                <i class="bi bi-building me-1"></i> Sede:
+            </label>
+            <select name="sede_id" class="form-select form-select-sm" style="max-width:220px;" onchange="this.form.submit()">
+                <option value="">— Todas las sedes —</option>
+                <?php foreach ($sedes as $sede): ?>
+                    <option value="<?= $sede['id'] ?>" <?= $sede_filtro == $sede['id'] ? 'selected' : '' ?>>
+                        <?= htmlspecialchars($sede['nombre']) ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
+
+            <?php if ($sede_filtro): ?>
+                <a href="<?= $url_limpiar ?>" class="btn btn-sm btn-outline-secondary">
+                    <i class="bi bi-x-circle"></i> Limpiar
+                </a>
+            <?php endif; ?>
+
+        </form>
+        <?php endif; ?>
+        <button class="btn btn-primary" onclick="nuevoIngreso()">
+            <i class="bi bi-plus-circle"></i>Nuevo Ingreso
+        </button>
     </div>
   </div>
 
@@ -285,45 +354,73 @@ try {
                     <thead class="bg-light">
                         <tr>
                             <th>Fecha</th>
+                            <?php if ($rol === 'Admin'): ?>
+                                <th>Sede</th>
+                            <?php endif; ?>
                             <th>Concepto</th>
-                            <th>Cliente / Tercero</th>
+                            <th>Estudiante / Tercero</th>
                             <th>Método</th>
                             <th class="text-end">Monto Total</th>
-                            <th class="text-center">Estado</th>
                         </tr>
                     </thead>
                     <tbody>
                         <?php if (empty($ingresos)): ?>
                             <tr>
-                                <td colspan="7" class="text-center py-4 text-muted">
-                                    <i class="fas fa-info-circle me-2"></i>No hay ingresos registrados en este momento.
+                                <td colspan="<?= $rol === 'Admin' ? 6 : 5 ?>" class="text-center py-4 text-muted">
+                                    <i class="bi bi-info-circle me-2"></i>No hay ingresos registrados en este momento.
                                 </td>
                             </tr>
                         <?php else: ?>
                             <?php foreach ($ingresos as $ing): ?>
                                 <tr>
                                     <td class="small"><?= date('d/m/Y h:i A', strtotime($ing['fecha_ingreso'])) ?></td>
+
+                                    <?php if ($rol === 'Admin'): ?>
+                                        <td class="small">
+                                            <?php if (!empty($ing['sede_nombre'])): ?>
+                                                <span class="badge bg-light text-dark border">
+                                                    <i class="bi bi-building me-1"></i><?= htmlspecialchars($ing['sede_nombre']) ?>
+                                                </span>
+                                            <?php else: ?>
+                                                <span class="text-muted fst-italic">Sin sede</span>
+                                            <?php endif; ?>
+                                        </td>
+                                    <?php endif; ?>
+
                                     <td>
                                         <span class="fw-bold d-block"><?= htmlspecialchars($ing['concepto']) ?></span>
-                                        <small class="text-muted">Ref: <?= $ing['referencia'] ?></small>
+                                        <?php if (!empty($ing['referencia'])): ?>
+                                            <small class="text-muted">Ref: <?= htmlspecialchars($ing['referencia']) ?></small>
+                                        <?php endif; ?>
                                     </td>
-                                    <td><?= $ing['cliente'] ?? '<span class="text-muted fst-italic">Venta Directa</span>' ?></td>
+
+                                    <td>
+                                        <?php
+                                            $nombreMostrar = $ing['cliente'] ?? $ing['observaciones'] ?? null;
+                                            if ($nombreMostrar):
+                                                $nombre = htmlspecialchars(mb_convert_case(trim($nombreMostrar), MB_CASE_TITLE, 'UTF-8'));
+                                        ?>
+                                                <span class="fw-semibold"><?= $nombre ?></span>
+                                                <?php if ($ing['persona_id']): ?>
+                                                    <i class="bi bi-patch-check-fill text-primary ms-1" title="Estudiante registrado" style="font-size:.85rem;"></i>
+                                                <?php endif; ?>
+                                        <?php else: ?>
+                                            <span class="text-muted fst-italic">Sin especificar</span>
+                                        <?php endif; ?>
+                                    </td>
+
                                     <td>
                                         <?php if ($ing['metodo_pago'] === 'Dividido'): ?>
                                             <span class="badge bg-info text-dark">
-                                                E: $<?= number_format($ing['monto_efectivo'], 0) ?> | T: $<?= number_format($ing['monto_transferencia'], 0) ?>
+                                                E: $<?= number_format($ing['monto_efectivo'], 0, ',', '.') ?> | T: $<?= number_format($ing['monto_transferencia'], 0, ',', '.') ?>
                                             </span>
                                         <?php else: ?>
                                             <span class="badge bg-light text-dark border"><?= $ing['metodo_pago'] ?></span>
                                         <?php endif; ?>
                                     </td>
+
                                     <td class="text-end fw-bold text-success">
                                         $<?= number_format($ing['monto'], 0, ',', '.') ?>
-                                    </td>
-                                    <td class="text-center">
-                                        <span class="badge <?= $ing['estado'] === 'Activo' ? 'bg-success' : 'bg-danger' ?>">
-                                            <?= $ing['estado'] ?>
-                                        </span>
                                     </td>
                                 </tr>
                             <?php endforeach; ?>
@@ -350,8 +447,34 @@ try {
                     </div>
 
                     <div class="mb-3">
-                        <label class="form-label fw-bold small">CLIENTE / TERCERO</label>
-                        <input type="text" name="cliente_nombre" class="form-control" placeholder="Nombre de quien paga">
+                        <label class="form-label fw-bold small">ESTUDIANTE / TERCERO</label>
+                        
+                        <!-- Input visible con autocomplete -->
+                        <input 
+                            type="text" 
+                            id="ing_cliente_input" 
+                            class="form-control" 
+                            placeholder="Buscar por nombre o documento..."
+                            autocomplete="off"
+                        >
+                        
+                        <!-- Campo oculto que guarda el persona_id si se selecciona -->
+                        <input type="hidden" name="persona_id" id="ing_persona_id">
+                        
+                        <!-- Campo con el nombre libre (por si no selecciona de la lista) -->
+                        <input type="hidden" name="cliente_nombre" id="ing_cliente_nombre">
+
+                        <!-- Dropdown de sugerencias -->
+                        <ul id="ing_sugerencias" class="list-group mt-1 shadow-sm" style="display:none; position:absolute; z-index:9999; width:100%; max-height:220px; overflow-y:auto;"></ul>
+
+                        <!-- Chip de persona seleccionada -->
+                        <div id="ing_persona_seleccionada" class="mt-2" style="display:none;">
+                            <span class="badge bg-primary fs-6 fw-normal px-3 py-2">
+                                <i class="bi bi-person-check me-1"></i>
+                                <span id="ing_persona_nombre_label"></span>
+                                <button type="button" class="btn-close btn-close-white ms-2" style="font-size:0.6rem;" onclick="limpiarPersonaIngreso()"></button>
+                            </span>
+                        </div>
                     </div>
 
                     <div id="seccion_monto_simple" class="mb-3 p-3 border rounded bg-light text-center">
@@ -461,5 +584,93 @@ document.getElementById('formNuevoIngreso').addEventListener('submit', function(
     .catch(error => {
         Swal.fire('Error', 'No se pudo conectar con el servidor', 'error');
     });
+});
+
+// ── Autocomplete de personas en Ingresos ──────────────────────────────────
+let timeoutBusqueda = null;
+
+document.getElementById('ing_cliente_input').addEventListener('input', function () {
+    const q = this.value.trim();
+    const sugerencias = document.getElementById('ing_sugerencias');
+
+    // Si borra el texto, limpiamos persona_id pero no bloqueamos
+    document.getElementById('ing_persona_id').value = '';
+    document.getElementById('ing_cliente_nombre').value = q;
+
+    clearTimeout(timeoutBusqueda);
+
+    if (q.length < 2) {
+        sugerencias.style.display = 'none';
+        sugerencias.innerHTML = '';
+        return;
+    }
+
+    timeoutBusqueda = setTimeout(() => {
+        fetch(`roles/admin/finanzas/ingresos/buscar_persona.php?q=${encodeURIComponent(q)}`)
+            .then(r => r.json())
+            .then(personas => {
+                sugerencias.innerHTML = '';
+
+                if (personas.length === 0) {
+                    sugerencias.innerHTML = '<li class="list-group-item text-muted small fst-italic">Sin coincidencias — se guardará como texto libre</li>';
+                    sugerencias.style.display = 'block';
+                    return;
+                }
+
+                personas.forEach(p => {
+                    const li = document.createElement('li');
+                    li.className = 'list-group-item list-group-item-action d-flex justify-content-between align-items-center';
+                    li.style.cursor = 'pointer';
+                    li.innerHTML = `
+                        <span><i class="bi bi-person me-2 text-primary"></i>${p.nombres_completos}</span>
+                        <small class="text-muted">${p.tipo_documento}: ${p.numero_documento}</small>
+                    `;
+                    li.addEventListener('click', () => seleccionarPersonaIngreso(p));
+                    sugerencias.appendChild(li);
+                });
+
+                sugerencias.style.display = 'block';
+            })
+            .catch(() => { sugerencias.style.display = 'none'; });
+    }, 300); // debounce 300ms
+});
+
+function seleccionarPersonaIngreso(persona) {
+    // Guardamos los valores en los campos ocultos
+    document.getElementById('ing_persona_id').value       = persona.id;
+    document.getElementById('ing_cliente_nombre').value   = persona.nombres_completos;
+
+    // Mostramos el chip y ocultamos el input
+    document.getElementById('ing_persona_nombre_label').textContent = persona.nombres_completos;
+    document.getElementById('ing_persona_seleccionada').style.display = 'block';
+    document.getElementById('ing_cliente_input').style.display        = 'none';
+
+    // Ocultamos sugerencias
+    document.getElementById('ing_sugerencias').style.display = 'none';
+    document.getElementById('ing_sugerencias').innerHTML     = '';
+}
+
+function limpiarPersonaIngreso() {
+    document.getElementById('ing_persona_id').value             = '';
+    document.getElementById('ing_cliente_nombre').value         = '';
+    document.getElementById('ing_persona_nombre_label').textContent = '';
+    document.getElementById('ing_persona_seleccionada').style.display = 'none';
+    document.getElementById('ing_cliente_input').style.display        = 'block';
+    document.getElementById('ing_cliente_input').value                = '';
+    document.getElementById('ing_cliente_input').focus();
+}
+
+// Cerrar sugerencias al hacer clic fuera
+document.addEventListener('click', function (e) {
+    const input = document.getElementById('ing_cliente_input');
+    const lista = document.getElementById('ing_sugerencias');
+    if (!input.contains(e.target) && !lista.contains(e.target)) {
+        lista.style.display = 'none';
+    }
+});
+
+// Al resetear el formulario, limpiar también el autocomplete
+document.getElementById('formNuevoIngreso').addEventListener('reset', function () {
+    limpiarPersonaIngreso();
 });
 </script>
