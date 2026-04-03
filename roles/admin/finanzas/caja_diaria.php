@@ -1,6 +1,9 @@
 <?php
 if (session_status() === PHP_SESSION_NONE) { session_start(); }
+date_default_timezone_set('America/Bogota');
 require_once __DIR__ . "/../../../config.php";
+
+$pdo->exec("SET time_zone = '-05:00'");
 
 $fecha_inicio = $_GET['fecha_inicio'] ?? date('Y-m-d');
 $fecha_fin    = $_GET['fecha_fin']    ?? date('Y-m-d');
@@ -152,25 +155,20 @@ if ($sede_filtro) {
 
         <div class="col-md-7">
             <form method="GET" action="" id="formFiltros" class="p-3">
-
                 <?php foreach ($params_base as $key => $value): ?>
                     <input type="hidden" name="<?= htmlspecialchars($key) ?>" value="<?= htmlspecialchars($value) ?>">
                 <?php endforeach; ?>
-
                 <div class="row g-2 align-items-end">
                     <div class="col-md-4">
                         <label class="small fw-bold">Desde:</label>
                         <input type="date" name="fecha_inicio" id="fecha_inicio"
-                               class="form-control form-control-sm"
-                               value="<?= $fecha_inicio ?>">
+                               class="form-control form-control-sm" value="<?= $fecha_inicio ?>">
                     </div>
                     <div class="col-md-4">
                         <label class="small fw-bold">Hasta:</label>
                         <input type="date" name="fecha_fin" id="fecha_fin"
-                               class="form-control form-control-sm"
-                               value="<?= $fecha_fin ?>">
+                               class="form-control form-control-sm" value="<?= $fecha_fin ?>">
                     </div>
-
                     <?php if ($rol === 'Admin'): ?>
                     <div class="col-md-4">
                         <label class="small fw-bold">Sede:</label>
@@ -190,28 +188,72 @@ if ($sede_filtro) {
     </div>
 
     <div class="row g-3 mb-4">
-        <div class="col-6 col-md-3">
+
+        <div class="col-md-4">
             <div class="card border-0 shadow-sm border-start border-success border-4 p-3">
-                <small class="text-muted fw-bold text-uppercase" style="font-size:.7rem;">Total Ingresos</small>
-                <h4 class="fw-bold mb-0 text-success">$<?= number_format($total_ingresos_bruto, 0, ',', '.') ?></h4>
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <small class="text-muted fw-bold text-uppercase" style="font-size:.7rem;">Total Ingresos</small>
+                        <h4 class="fw-bold mb-2 text-success">$<?= number_format($total_ingresos_bruto, 0, ',', '.') ?></h4>
+                    </div>
+                    <button class="btn btn-sm btn-light border" onclick="abrirModal('ingresos')" title="Ver detalle">
+                        <i class="bi bi-eye text-success"></i>
+                    </button>
+                </div>
+                <div class="d-flex gap-2 flex-wrap">
+                    <span class="badge bg-success-subtle text-success border border-success px-2 py-1" style="font-size:.72rem;">
+                        <i class="bi bi-cash me-1"></i>Efectivo: $<?= number_format(($res_pagos['efec'] ?? 0) + ($res_ing['efec'] ?? 0), 0, ',', '.') ?>
+                    </span>
+                    <span class="badge bg-info-subtle text-info border border-info px-2 py-1" style="font-size:.72rem;">
+                        <i class="bi bi-bank me-1"></i>Transfer: $<?= number_format(($res_pagos['trans'] ?? 0) + ($res_ing['trans'] ?? 0), 0, ',', '.') ?>
+                    </span>
+                </div>
             </div>
         </div>
-        <div class="col-6 col-md-3">
+
+        <div class="col-md-4">
             <div class="card border-0 shadow-sm border-start border-danger border-4 p-3">
-                <small class="text-muted fw-bold text-uppercase" style="font-size:.7rem;">Total Egresos</small>
-                <h4 class="fw-bold mb-0 text-danger">$<?= number_format($total_egresos, 0, ',', '.') ?></h4>
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <small class="text-muted fw-bold text-uppercase" style="font-size:.7rem;">Total Egresos</small>
+                        <h4 class="fw-bold mb-2 text-danger">$<?= number_format($total_egresos, 0, ',', '.') ?></h4>
+                    </div>
+                    <button class="btn btn-sm btn-light border" onclick="abrirModal('egresos')" title="Ver detalle">
+                        <i class="bi bi-eye text-danger"></i>
+                    </button>
+                </div>
+                <div class="d-flex gap-2 flex-wrap">
+                    <span class="badge bg-danger-subtle text-danger border border-danger px-2 py-1" style="font-size:.72rem;">
+                        <i class="bi bi-cash me-1"></i>Efectivo: $<?= number_format($res_egr['efec'] ?? 0, 0, ',', '.') ?>
+                    </span>
+                    <span class="badge bg-warning-subtle text-warning border border-warning px-2 py-1" style="font-size:.72rem;">
+                        <i class="bi bi-bank me-1"></i>Transfer: $<?= number_format($res_egr['trans'] ?? 0, 0, ',', '.') ?>
+                    </span>
+                </div>
             </div>
         </div>
-        <div class="col-6 col-md-3">
-            <div class="card border-0 shadow-sm border-start border-primary border-4 p-3">
-                <small class="text-muted fw-bold text-uppercase" style="font-size:.7rem;">Efectivo en Caja</small>
-                <h4 class="fw-bold mb-0 text-primary">$<?= number_format($total_efectivo_caja, 0, ',', '.') ?></h4>
-            </div>
-        </div>
-        <div class="col-6 col-md-3">
-            <div class="card border-0 shadow-sm border-start border-info border-4 p-3">
-                <small class="text-muted fw-bold text-uppercase" style="font-size:.7rem;">Neto en Bancos</small>
-                <h4 class="fw-bold mb-0 text-info">$<?= number_format($total_bancos, 0, ',', '.') ?></h4>
+
+        <div class="col-md-4">
+            <div class="card border-0 shadow-sm border-start border-4 p-3 <?= $saldo_neto >= 0 ? 'border-primary' : 'border-danger' ?>">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <small class="text-muted fw-bold text-uppercase" style="font-size:.7rem;">Total en Caja</small>
+                        <h4 class="fw-bold mb-2 <?= $saldo_neto >= 0 ? 'text-primary' : 'text-danger' ?>">
+                            <?= $saldo_neto < 0 ? '-' : '' ?>$<?= number_format(abs($saldo_neto), 0, ',', '.') ?>
+                        </h4>
+                    </div>
+                    <button class="btn btn-sm btn-light border" onclick="abrirModal('caja')" title="Ver detalle">
+                        <i class="bi bi-eye text-primary"></i>
+                    </button>
+                </div>
+                <div class="d-flex gap-2 flex-wrap">
+                    <span class="badge bg-primary-subtle text-primary border border-primary px-2 py-1" style="font-size:.72rem;">
+                        <i class="bi bi-cash me-1"></i>Efectivo: $<?= number_format($total_efectivo_caja, 0, ',', '.') ?>
+                    </span>
+                    <span class="badge bg-info-subtle text-info border border-info px-2 py-1" style="font-size:.72rem;">
+                        <i class="bi bi-bank me-1"></i>Transfer: $<?= number_format($total_bancos, 0, ',', '.') ?>
+                    </span>
+                </div>
             </div>
         </div>
     </div>
@@ -229,36 +271,93 @@ if ($sede_filtro) {
                 <div class="card-header bg-white border-0 py-3">
                     <h6 class="fw-bold mb-0">Balance del Periodo</h6>
                 </div>
-                <div class="card-body">
+                <div class="card-body p-0">
                     <ul class="list-group list-group-flush">
-                        <li class="list-group-item d-flex justify-content-between px-0">
-                            <span class="text-muted">Pagos Académicos</span>
-                            <span class="fw-bold">$<?= number_format($res_pagos['total'] ?? 0, 0, ',', '.') ?></span>
+
+                        <li class="list-group-item px-3 py-2">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="fw-semibold small">Pagos Académicos</span>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="fw-bold">$<?= number_format($res_pagos['total'] ?? 0, 0, ',', '.') ?></span>
+                                    <button class="btn btn-sm btn-light border p-1 lh-1" onclick="abrirModal('pagos')" title="Ver pagos">
+                                        <i class="bi bi-eye small text-primary"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="d-flex gap-2 mt-1 flex-wrap">
+                                <span class="badge bg-success-subtle text-success" style="font-size:.68rem;">
+                                    <i class="bi bi-cash me-1"></i>$<?= number_format($res_pagos['efec'] ?? 0, 0, ',', '.') ?>
+                                </span>
+                                <span class="badge bg-info-subtle text-info" style="font-size:.68rem;">
+                                    <i class="bi bi-bank me-1"></i>$<?= number_format($res_pagos['trans'] ?? 0, 0, ',', '.') ?>
+                                </span>
+                            </div>
                         </li>
-                        <li class="list-group-item d-flex justify-content-between px-0">
-                            <span class="text-muted">Otros Ingresos</span>
-                            <span class="fw-bold">$<?= number_format($res_ing['total'] ?? 0, 0, ',', '.') ?></span>
+
+                        <li class="list-group-item px-3 py-2">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="fw-semibold small">Otros Ingresos</span>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="fw-bold">$<?= number_format($res_ing['total'] ?? 0, 0, ',', '.') ?></span>
+                                    <button class="btn btn-sm btn-light border p-1 lh-1" onclick="abrirModal('otros_ingresos')" title="Ver ingresos">
+                                        <i class="bi bi-eye small text-success"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="d-flex gap-2 mt-1 flex-wrap">
+                                <span class="badge bg-success-subtle text-success" style="font-size:.68rem;">
+                                    <i class="bi bi-cash me-1"></i>$<?= number_format($res_ing['efec'] ?? 0, 0, ',', '.') ?>
+                                </span>
+                                <span class="badge bg-info-subtle text-info" style="font-size:.68rem;">
+                                    <i class="bi bi-bank me-1"></i>$<?= number_format($res_ing['trans'] ?? 0, 0, ',', '.') ?>
+                                </span>
+                            </div>
                         </li>
-                        <li class="list-group-item d-flex justify-content-between px-0">
-                            <span class="text-muted">Ingresos en Efectivo</span>
-                            <span class="fw-bold text-success">$<?= number_format(($res_pagos['efec'] ?? 0) + ($res_ing['efec'] ?? 0), 0, ',', '.') ?></span>
+
+                        <li class="list-group-item px-3 py-2">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="fw-semibold small text-danger">Egresos Totales</span>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="fw-bold text-danger">-$<?= number_format($total_egresos, 0, ',', '.') ?></span>
+                                    <button class="btn btn-sm btn-light border p-1 lh-1" onclick="abrirModal('egresos')" title="Ver egresos">
+                                        <i class="bi bi-eye small text-danger"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="d-flex gap-2 mt-1 flex-wrap">
+                                <span class="badge bg-danger-subtle text-danger" style="font-size:.68rem;">
+                                    <i class="bi bi-cash me-1"></i>$<?= number_format($res_egr['efec'] ?? 0, 0, ',', '.') ?>
+                                </span>
+                                <span class="badge bg-warning-subtle text-warning" style="font-size:.68rem;">
+                                    <i class="bi bi-bank me-1"></i>$<?= number_format($res_egr['trans'] ?? 0, 0, ',', '.') ?>
+                                </span>
+                            </div>
                         </li>
-                        <li class="list-group-item d-flex justify-content-between px-0">
-                            <span class="text-muted">Ingresos por Transferencia</span>
-                            <span class="fw-bold text-success">$<?= number_format(($res_pagos['trans'] ?? 0) + ($res_ing['trans'] ?? 0), 0, ',', '.') ?></span>
+
+                        <li class="list-group-item px-3 py-2 bg-light">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="fw-bold <?= $saldo_neto >= 0 ? 'text-primary' : 'text-danger' ?>">Total en Caja</span>
+                                <div class="d-flex align-items-center gap-2">
+                                    <span class="fw-bold h6 mb-0 <?= $saldo_neto >= 0 ? 'text-primary' : 'text-danger' ?>">
+                                        <?= $saldo_neto < 0 ? '-' : '' ?>$<?= number_format(abs($saldo_neto), 0, ',', '.') ?>
+                                    </span>
+                                    <button class="btn btn-sm btn-light border p-1 lh-1" onclick="abrirModal('caja')" title="Ver detalle">
+                                        <i class="bi bi-eye small text-primary"></i>
+                                    </button>
+                                </div>
+                            </div>
+                            <div class="d-flex gap-2 mt-1 flex-wrap">
+                                <span class="badge bg-primary-subtle text-primary" style="font-size:.68rem;">
+                                    <i class="bi bi-cash me-1"></i>$<?= number_format($total_efectivo_caja, 0, ',', '.') ?>
+                                </span>
+                                <span class="badge bg-info-subtle text-info" style="font-size:.68rem;">
+                                    <i class="bi bi-bank me-1"></i>$<?= number_format($total_bancos, 0, ',', '.') ?>
+                                </span>
+                            </div>
                         </li>
-                        <li class="list-group-item d-flex justify-content-between px-0 text-danger">
-                            <span>Egresos Totales</span>
-                            <span class="fw-bold">-$<?= number_format($total_egresos, 0, ',', '.') ?></span>
-                        </li>
-                        <li class="list-group-item d-flex justify-content-between px-0 mt-1">
-                            <span class="h5 fw-bold <?= $saldo_neto >= 0 ? 'text-primary' : 'text-danger' ?>">Total en Caja</span>
-                            <span class="h5 fw-bold <?= $saldo_neto >= 0 ? 'text-primary' : 'text-danger' ?>">
-                                <?= $saldo_neto < 0 ? '-' : '' ?>$<?= number_format(abs($saldo_neto), 0, ',', '.') ?>
-                            </span>
-                        </li>
+
                     </ul>
-                    <div class="alert alert-warning mt-3 py-2 small mb-0">
+                    <div class="alert alert-warning mx-3 my-2 py-2 small mb-2">
                         <i class="bi bi-info-circle me-1"></i>
                         Saldo neto = ingresos totales menos egresos del periodo.
                     </div>
@@ -268,8 +367,30 @@ if ($sede_filtro) {
     </div>
 </div>
 
+<div class="modal fade" id="modalDetalle" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-scrollable">
+        <div class="modal-content border-0">
+            <div class="modal-header" id="modalDetalleHeader">
+                <h5 class="modal-title fw-bold" id="modalDetalleTitulo">Detalle</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body p-0">
+                <div id="modalDetalleContenido" class="p-3">
+                    <div class="text-center py-4">
+                        <div class="spinner-border text-primary" role="status"></div>
+                        <p class="mt-2 text-muted small">Cargando...</p>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer bg-light py-2">
+                <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cerrar</button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
- <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script>
 // ── Gráfica ───────────────────────────────────────────────────────────────────
 const ctx = document.getElementById('chartFinanzas').getContext('2d');
@@ -302,16 +423,79 @@ new Chart(ctx, {
     }
 });
 
-// ── Auto-submit al cambiar fechas o sede ─────────────────────────────────────
-document.getElementById('fecha_inicio').addEventListener('change', () => {
-    document.getElementById('formFiltros').submit();
-});
-document.getElementById('fecha_fin').addEventListener('change', () => {
-    document.getElementById('formFiltros').submit();
-});
+// ── Auto-submit ───────────────────────────────────────────────────────────────
+document.getElementById('fecha_inicio').addEventListener('change', () => document.getElementById('formFiltros').submit());
+document.getElementById('fecha_fin').addEventListener('change',    () => document.getElementById('formFiltros').submit());
 <?php if ($rol === 'Admin'): ?>
-document.getElementById('select_sede').addEventListener('change', () => {
-    document.getElementById('formFiltros').submit();
-});
+document.getElementById('select_sede').addEventListener('change',  () => document.getElementById('formFiltros').submit());
 <?php endif; ?>
+
+// ── Modal con detalle por tipo ────────────────────────────────────────────────
+const configModal = {
+    pagos: {
+        titulo: 'Pagos Académicos',
+        color:  'bg-primary text-white',
+        url:    'roles/admin/finanzas/caja/detalle.php?tipo=pagos'
+    },
+    otros_ingresos: {
+        titulo: 'Otros Ingresos',
+        color:  'bg-success text-white',
+        url:    'roles/admin/finanzas/caja/detalle.php?tipo=otros_ingresos'
+    },
+    egresos: {
+        titulo: 'Egresos',
+        color:  'bg-danger text-white',
+        url:    'roles/admin/finanzas/caja/detalle.php?tipo=egresos'
+    },
+    ingresos: {
+        titulo: 'Total Ingresos (Pagos + Otros)',
+        color:  'bg-success text-white',
+        url:    'roles/admin/finanzas/caja/detalle.php?tipo=ingresos'
+    },
+    caja: {
+        titulo: 'Resumen Total en Caja',
+        color:  'bg-primary text-white',
+        url:    'roles/admin/finanzas/caja/detalle.php?tipo=caja'
+    }
+};
+
+function abrirModal(tipo) {
+    const cfg = configModal[tipo];
+    const modalEl = document.getElementById('modalDetalle');
+
+    // Título y color header
+    document.getElementById('modalDetalleTitulo').textContent = cfg.titulo;
+    document.getElementById('modalDetalleHeader').className   = 'modal-header ' + cfg.color;
+
+    // Spinner mientras carga
+    document.getElementById('modalDetalleContenido').innerHTML = `
+        <div class="text-center py-4">
+            <div class="spinner-border text-primary" role="status"></div>
+            <p class="mt-2 text-muted small">Cargando registros...</p>
+        </div>`;
+
+    // Armar URL con los filtros actuales de fecha y sede
+    const params = new URLSearchParams({
+        tipo:          tipo,
+        fecha_inicio:  document.getElementById('fecha_inicio').value,
+        fecha_fin:     document.getElementById('fecha_fin').value,
+        <?php if ($sede_filtro): ?>
+        sede_id: '<?= $sede_filtro ?>',
+        <?php elseif ($rol !== 'Admin'): ?>
+        sede_id: '<?= $sede_id ?>',
+        <?php endif; ?>
+    });
+
+    fetch('roles/admin/finanzas/caja/detalle.php?' + params.toString())
+        .then(r => r.text())
+        .then(html => {
+            document.getElementById('modalDetalleContenido').innerHTML = html;
+        })
+        .catch(() => {
+            document.getElementById('modalDetalleContenido').innerHTML =
+                '<div class="alert alert-danger m-3">Error al cargar los datos.</div>';
+        });
+
+    new bootstrap.Modal(modalEl).show();
+}
 </script>
