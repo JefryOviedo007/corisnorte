@@ -102,16 +102,17 @@ if ($rol === 'Admin') {
     </div>
 
     <div class="col-md-6">
-      <label class="form-label">Estado</label>
-      <select name="estado" class="form-select">
-        <option value="Creado" <?= $g['estado']=='Creado'?'selected':'' ?>>Creado</option>
-        <option value="Inscripciones Abiertas" <?= $g['estado']=='Inscripciones Abiertas'?'selected':'' ?>>
-          Inscripciones Abiertas
-        </option>
-        <option value="Inscripciones Cerradas" <?= $g['estado']=='Inscripciones Cerradas'?'selected':'' ?>>
-          Inscripciones Cerradas
-        </option>
-      </select>
+        <label class="form-label">Estado</label>
+        <select name="estado" class="form-select">
+            <?php
+            $estados = ['Creado', 'Inscripciones Abiertas', 'Inscripciones Cerradas', 'En Formación', 'Finalizado'];
+            foreach ($estados as $estado):
+            ?>
+                <option value="<?= $estado ?>" <?= $g['estado'] === $estado ? 'selected' : '' ?>>
+                    <?= $estado ?>
+                </option>
+            <?php endforeach; ?>
+        </select>
     </div>
 
   </div>

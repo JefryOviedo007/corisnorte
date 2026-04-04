@@ -88,9 +88,11 @@ try {
         </div>
         
         <div class="d-flex flex-wrap gap-2">
-            <button class="btn btn-dark btn-action" id="btnActualizar" onclick="actualizarGrupo()" disabled><i class="bi bi-arrow-repeat"></i> Actualizar Grupo</button>
+            <button class="btn btn-success btn-action" onclick="nuevoEstudiante()"><i class="bi bi-person-plus-fill"></i> Nuevo</button>
+            <button class="btn btn-outline-warning btn-action" id="btnDescuento" onclick="aplicarDescuento()" disabled><i class="bi bi-percent"></i> Descuento</button>
             <button class="btn btn-outline-primary btn-action" id="btnEditar" onclick="editarSeleccionado()" disabled><i class="bi bi-pencil-square"></i> Editar</button>
             <button class="btn btn-outline-danger btn-action" id="btnEliminar" onclick="eliminarSeleccionado()" disabled><i class="bi bi-trash"></i> Eliminar</button>
+            <button class="btn btn-dark btn-action" id="btnActualizar" onclick="actualizarGrupo()" disabled><i class="bi bi-arrow-repeat"></i> Actualizar Grupo</button>
             <button class="btn btn-outline-success btn-action" onclick="importarDatos()"><i class="bi bi-file-earmark-arrow-up"></i> Importar</button>
             <button class="btn btn-outline-info btn-action" onclick="exportarExcel()"><i class="bi bi-file-earmark-excel"></i> Exportar</button>
         </div>
@@ -108,6 +110,7 @@ try {
                             <th width="50">Foto</th>
                             <th>Documento</th>
                             <th>Nombres Completos</th>
+                            <th class="text-center">Descuento</th>
                             <?php if ($rol === 'Admin'): ?>
                                 <th>Sede</th>
                             <?php endif; ?>
@@ -119,7 +122,7 @@ try {
                     <tbody>
                         <?php if (empty($estudiantes)): ?>
                             <tr>
-                                <td colspan="<?= ($rol === 'Admin') ? '8' : '7' ?>" class="text-center py-5 text-muted">
+                                <td colspan="<?= ($rol === 'Admin') ? '9' : '8' ?>" class="text-center py-5 text-muted">
                                     No se encontraron estudiantes registrados.
                                 </td>
                             </tr>
@@ -141,8 +144,18 @@ try {
                                     <span class="fw-bold"><?= $est['numero_documento'] ?></span><br>
                                     <small class="text-muted"><?= $est['tipo_documento'] ?></small>
                                 </td>
-                                <td class="text-uppercase fw-semibold">
-                                    <?= htmlspecialchars($est['nombres_completos']) ?>
+                                <td class="fw-semibold">
+                                    <?= htmlspecialchars(mb_convert_case($est['nombres_completos'], MB_CASE_TITLE, 'UTF-8')) ?>
+                                </td>
+
+                                <td class="text-center">
+                                    <?php if ($est['descuento'] > 0): ?>
+                                        <span class="badge bg-warning text-dark fw-bold">
+                                            <i class="bi bi-percent me-1"></i><?= $est['descuento'] ?>%
+                                        </span>
+                                    <?php else: ?>
+                                        <span class="text-muted small">—</span>
+                                    <?php endif; ?>
                                 </td>
                                 
                                 <?php if ($rol === 'Admin'): ?>
@@ -273,6 +286,150 @@ try {
     </div>
 </div>
 
+<div class="modal fade" id="modalNuevoEstudiante" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title fw-bold"><i class="bi bi-person-plus-fill me-2"></i>Nuevo Estudiante</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="formNuevoEstudiante" enctype="multipart/form-data">
+                <input type="hidden" name="action" value="create">
+
+                <div class="modal-body p-4" style="max-height: 75vh; overflow-y: auto;">
+                    <div class="row g-3">
+
+                        <div class="col-12 text-center">
+                            <div class="photo-preview-container">
+                                <img id="nuevo_preview_foto" 
+                                     src="https://ui-avatars.com/api/?name=Nuevo+Estudiante&background=random&color=fff" 
+                                     alt="Vista previa">
+                            </div>
+                            <label for="nuevo_foto_input" class="btn btn-sm btn-outline-success mb-3">
+                                <i class="bi bi-camera me-1"></i> Subir Foto
+                            </label>
+                            <input type="file" name="foto" id="nuevo_foto_input" class="d-none" accept="image/*" 
+                                   onchange="previewImageNuevo(this)">
+                        </div>
+
+                        <div class="col-md-4">
+                            <label class="form-label small fw-bold">Tipo Doc. <span class="text-danger">*</span></label>
+                            <select class="form-select" name="tipo_documento" required>
+                                <option value="CC">CC</option>
+                                <option value="TI">TI</option>
+                                <option value="CE">CE</option>
+                                <option value="PASAPORTE">PASAPORTE</option>
+                            </select>
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label small fw-bold">N° Documento <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" name="numero_documento" required placeholder="Ej: 1234567890">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small fw-bold">Nombres Completos <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control text-uppercase" name="nombres_completos" required placeholder="Ej: JUAN CARLOS PÉREZ GÓMEZ">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small">Teléfono</label>
+                            <input type="text" class="form-control" name="telefono" placeholder="Ej: 3001234567">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small">Correo</label>
+                            <input type="email" class="form-control" name="correo" placeholder="correo@ejemplo.com">
+                        </div>
+                        <div class="col-12">
+                            <label class="form-label small">Dirección</label>
+                            <input type="text" class="form-control" name="direccion" placeholder="Dirección de residencia">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small">EPS</label>
+                            <input type="text" class="form-control" name="eps" placeholder="Ej: Sura">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small">Sisbén</label>
+                            <input type="text" class="form-control" name="sisben" placeholder="Ej: A1">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small">Estado Civil</label>
+                            <input type="text" class="form-control" name="estado_civil" placeholder="Ej: Soltero/a">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small fw-bold text-danger">Estado</label>
+                            <select class="form-select" name="estado">
+                                <option value="Prospecto" selected>Prospecto</option>
+                                <option value="Matriculado">Matriculado</option>
+                                <option value="En formación">En formación</option>
+                                <option value="Egresado">Egresado</option>
+                                <option value="Retirado">Retirado</option>
+                            </select>
+                        </div>
+
+                        <div class="col-12 mt-3 text-muted"><hr><small>INFORMACIÓN DE EMERGENCIA</small></div>
+                        <div class="col-md-6">
+                            <label class="small">Contacto Emergencia</label>
+                            <input type="text" class="form-control" name="contacto_nombre" placeholder="Nombre completo">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="small">Parentesco</label>
+                            <input type="text" class="form-control" name="contacto_parentesco" placeholder="Ej: Madre, Padre">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="small">Tel. Emergencia</label>
+                            <input type="text" class="form-control" name="contacto_telefono">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="small">Dir. Emergencia</label>
+                            <input type="text" class="form-control" name="contacto_direccion">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-person-check-fill me-1"></i> Registrar Estudiante
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="modalDescuento" tabindex="-1" aria-hidden="true">
+    <div class="modal-dialog modal-sm modal-dialog-centered">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-warning text-dark">
+                <h5 class="modal-title fw-bold">
+                    <i class="bi bi-percent me-2"></i>Aplicar Descuento
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form id="formDescuento">
+                <input type="hidden" name="id" id="descuento_id">
+                <div class="modal-body p-4">
+                    <p class="text-muted small mb-3">
+                        Estudiante: <strong id="descuento_nombre"></strong>
+                    </p>
+                    <label class="form-label fw-bold small">PORCENTAJE DE DESCUENTO</label>
+                    <div class="input-group">
+                        <input type="number" name="descuento" id="descuento_valor"
+                               class="form-control form-control-lg text-center fw-bold"
+                               min="0" max="100" placeholder="0" required>
+                        <span class="input-group-text fw-bold">%</span>
+                    </div>
+                    <small class="text-muted mt-1 d-block">Ingresa un valor entre 0 y 100.</small>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-warning fw-bold">
+                        <i class="bi bi-check-circle me-1"></i>Aplicar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
 <div class="modal fade" id="modalActualizarGrupo" tabindex="-1" aria-hidden="true">
     <div class="modal-dialog modal-md modal-dialog-centered">
         <div class="modal-content border-0 shadow">
@@ -331,6 +488,7 @@ try {
         document.getElementById('btnEditar').disabled = (seleccionados !== 1);
         document.getElementById('btnEliminar').disabled = (seleccionados === 0);
         document.getElementById('btnActualizar').disabled = (seleccionados === 0);
+        document.getElementById('btnDescuento').disabled = (seleccionados !== 1);
     }
 
     function toggleAll(source) {
@@ -357,6 +515,59 @@ try {
     function getSelectedIds() {
         return Array.from(document.querySelectorAll('.check-estudiante:checked')).map(cb => cb.value);
     }
+
+    // --- NUEVO ESTUDIANTE ---
+    function nuevoEstudiante() {
+        document.getElementById('formNuevoEstudiante').reset();
+        document.getElementById('nuevo_preview_foto').src =
+            'https://ui-avatars.com/api/?name=Nuevo+Estudiante&background=4CAF50&color=fff';
+        new bootstrap.Modal(document.getElementById('modalNuevoEstudiante')).show();
+    }
+
+    function previewImageNuevo(input) {
+        if (input.files && input.files[0]) {
+            const reader = new FileReader();
+            reader.onload = e => {
+                document.getElementById('nuevo_preview_foto').src = e.target.result;
+            };
+            reader.readAsDataURL(input.files[0]);
+        }
+    }
+
+    document.getElementById('formNuevoEstudiante').onsubmit = function(e) {
+        e.preventDefault();
+
+        const btn = this.querySelector('button[type="submit"]');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Guardando...';
+
+        fetch('roles/admin/academico/estudiantes/crear.php', {
+            method: 'POST',
+            body: new FormData(this)
+        })
+        .then(res => res.json())
+        .then(res => {
+            if (res.status === 'success') {
+                bootstrap.Modal.getInstance(document.getElementById('modalNuevoEstudiante')).hide();
+                Swal.fire({
+                    icon: 'success',
+                    title: '¡Registrado!',
+                    text: res.message,
+                    timer: 2000,
+                    showConfirmButton: false
+                }).then(() => location.reload());
+            } else {
+                Swal.fire('Error', res.message, 'error');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-person-check-fill me-1"></i> Registrar Estudiante';
+            }
+        })
+        .catch(() => {
+            Swal.fire('Error', 'Error de conexión con el servidor', 'error');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-person-check-fill me-1"></i> Registrar Estudiante';
+        });
+    };
 
     // --- EDITAR ---
     function editarSeleccionado() {
@@ -424,6 +635,57 @@ try {
             Swal.fire('Error', 'Error de conexión con el servidor', 'error');
             btn.disabled = false;
             btn.innerText = "Guardar Cambios";
+        });
+    };
+
+    // --- DESCUENTO ---
+    function aplicarDescuento() {
+        const ids = getSelectedIds();
+        if (ids.length !== 1) return;
+
+        // Obtenemos el nombre del estudiante desde la fila seleccionada
+        const fila   = document.getElementById('row-' + ids[0]);
+        const nombre = fila.querySelector('td:nth-child(4)').textContent.trim();
+
+        document.getElementById('descuento_id').value      = ids[0];
+        document.getElementById('descuento_nombre').textContent = nombre;
+        document.getElementById('descuento_valor').value   = '';
+
+        new bootstrap.Modal(document.getElementById('modalDescuento')).show();
+    }
+
+    document.getElementById('formDescuento').onsubmit = function(e) {
+        e.preventDefault();
+
+        const btn = this.querySelector('button[type="submit"]');
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Aplicando...';
+
+        fetch('roles/admin/academico/estudiantes/descuento.php', {
+            method: 'POST',
+            body: new FormData(this)
+        })
+        .then(res => res.json())
+        .then(res => {
+            if (res.status === 'success') {
+                bootstrap.Modal.getInstance(document.getElementById('modalDescuento')).hide();
+                Swal.fire({
+                    icon: 'success',
+                    title: '¡Descuento aplicado!',
+                    text: res.message,
+                    timer: 2000,
+                    showConfirmButton: false
+                }).then(() => location.reload());
+            } else {
+                Swal.fire('Error', res.message, 'error');
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Aplicar';
+            }
+        })
+        .catch(() => {
+            Swal.fire('Error', 'Error de conexión con el servidor', 'error');
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Aplicar';
         });
     };
 
