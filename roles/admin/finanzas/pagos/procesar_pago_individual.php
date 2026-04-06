@@ -3,17 +3,13 @@ require_once __DIR__ . "/../../../../config.php";
 header('Content-Type: application/json');
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    // Recibir datos del formulario
-    $persona_id = $_POST['persona_id'] ?? null;
-    $concepto_recibido = $_POST['concepto'] ?? 'Pensión'; 
-    $monto_recibido = (float)($_POST['monto'] ?? 0); // Valor digitado en el modal (puede ser abono)
-    $metodo_pago = $_POST['metodo_pago'] ?? 'Efectivo';
-    
-    // Estos vienen del modal solo si se usó "Dividido"
-    $m_efectivo_post = (float)($_POST['monto_efectivo'] ?? 0);
+    $persona_id           = $_POST['persona_id'] ?? null;
+    $concepto_recibido    = $_POST['concepto'] ?? 'Pensión'; 
+    $monto_recibido       = (float)($_POST['monto'] ?? 0);
+    $metodo_pago          = $_POST['metodo_pago'] ?? 'Efectivo';
+    $m_efectivo_post      = (float)($_POST['monto_efectivo'] ?? 0);
     $m_transferencia_post = (float)($_POST['monto_transferencia'] ?? 0);
-    
-    $referencia_manual = $_POST['referencia'] ?? '';
+    $referencia_manual    = $_POST['referencia'] ?? '';
 
     if (!$persona_id) {
         echo json_encode(['status' => 'error', 'message' => 'ID de persona no recibido']);
@@ -30,8 +26,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         // 2. Obtener datos detallados del estudiante e inscripción
         $sqlInfo = "SELECT 
                         p.id AS persona_id, p.nombres_completos, p.correo, p.numero_documento,
+                        p.descuento,
                         i.id AS insc_id, i.codigo, 
                         prog.nombre AS programa,
+                        prog.mensualidad,
                         s.nombre AS sede, s.direccion AS sede_dir
                     FROM personas p 
                     INNER JOIN inscripciones i ON i.persona_id = p.id 
@@ -55,30 +53,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $concepto_enum = 'Inscripción';
         } elseif (stripos($concepto_recibido, 'Matrícula') !== false || stripos($concepto_recibido, 'Matricula') !== false) {
             $concepto_enum = 'Matrícula';
-        }elseif (stripos($concepto_recibido, 'Grado') !== false) {
+        } elseif (stripos($concepto_recibido, 'Grado') !== false) {
             $concepto_enum = 'Derechos de Grado';
         } elseif (stripos($concepto_recibido, 'Seminario') !== false) {
             $concepto_enum = 'Seminario';
         }
 
         // --- DISTRIBUCIÓN DE MONTOS FLEXIBLE (PERMITE ABONOS) ---
-        $efectivo = 0;
+        $efectivo     = 0;
         $transferencia = 0;
-        $monto_final = 0;
+        $monto_final  = 0;
 
         if ($metodo_pago === 'Dividido') {
-            // En pago dividido, el total es la suma de los dos campos ingresados
-            $efectivo = $m_efectivo_post;
+            $efectivo      = $m_efectivo_post;
             $transferencia = $m_transferencia_post;
-            $monto_final = $efectivo + $transferencia;
+            $monto_final   = $efectivo + $transferencia;
         } elseif ($metodo_pago === 'Efectivo') {
-            $efectivo = $monto_recibido;
+            $efectivo      = $monto_recibido;
             $transferencia = 0;
-            $monto_final = $monto_recibido;
+            $monto_final   = $monto_recibido;
         } elseif ($metodo_pago === 'Transferencia') {
-            $efectivo = 0;
+            $efectivo      = 0;
             $transferencia = $monto_recibido;
-            $monto_final = $monto_recibido;
+            $monto_final   = $monto_recibido;
         }
 
         if ($monto_final <= 0) {
@@ -87,32 +84,46 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         // 3. Preparar el insert de Pago
         $insPago = $pdo->prepare("INSERT INTO pagos (persona_id, inscripcion_id, concepto, monto, monto_efectivo, monto_transferencia, metodo_pago, referencia, observaciones, estado) 
-                                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Completado')");
+                                  VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Completado')");
 
         $referencia = !empty($referencia_manual) ? $referencia_manual : "REC-" . $data['codigo'] . "-" . date('His');
 
-        // Ejecutar Insert
         $insPago->execute([
             $data['persona_id'], 
             $data['insc_id'], 
             $concepto_enum, 
-            $monto_final,   // El valor total del abono o pago total
+            $monto_final,
             $efectivo,      
             $transferencia, 
             $metodo_pago, 
             $referencia,
-            $concepto_recibido // Detalle: "Pensión - Mes 1"
+            $concepto_recibido
         ]);
 
         $pago_id = $pdo->lastInsertId();
 
-        // 4. Enviar correo informativo con el monto real pagado
-        enviarCorreoMensualidad($data, $inst, $referencia, $metodo_pago, $efectivo, $transferencia, $concepto_recibido, $monto_final);
+        // 4. Calcular descuento para mostrar en el correo (solo informativo)
+        $esPension    = $concepto_enum === 'Pensión';
+        $descuento_pct = (int)($data['descuento'] ?? 0);
+        $mensualidad  = (float)($data['mensualidad'] ?? 0);
+
+        // Subtotal real (antes del descuento) solo si es pensión con descuento
+        $subtotal = ($esPension && $descuento_pct > 0 && $mensualidad > 0)
+            ? $mensualidad
+            : $monto_final;
+
+        // 5. Enviar correo
+        enviarCorreoMensualidad(
+            $data, $inst, $referencia, $metodo_pago,
+            $efectivo, $transferencia, $concepto_recibido,
+            $monto_final, $subtotal, $descuento_pct, $esPension
+        );
 
         $pdo->commit();
+
         echo json_encode([
-            'status' => 'success', 
-            'message' => 'Pago de ' . $concepto_recibido . ' por $' . number_format($monto_final, 0) . ' procesado correctamente.', 
+            'status'      => 'success', 
+            'message'     => 'Pago de ' . $concepto_recibido . ' por $' . number_format($monto_final, 0, ',', '.') . ' procesado correctamente.', 
             'correo_envio' => $data['correo']
         ]);
 
@@ -122,17 +133,35 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-function enviarCorreoMensualidad($data, $inst, $referencia, $metodo, $efectivo, $transf, $concepto, $total) {
-    $costoFmt = '$ ' . number_format($total, 0, ',', '.');
-    $fecha = date('d/m/Y h:i A');
-    
+function enviarCorreoMensualidad($data, $inst, $referencia, $metodo, $efectivo, $transf, $concepto, $total, $subtotal, $descuento_pct, $esPension) {
+    $totalFmt    = '$ ' . number_format($total,    0, ',', '.');
+    $subtotalFmt = '$ ' . number_format($subtotal, 0, ',', '.');
+    $fecha       = date('d/m/Y h:i A');
+
     $subject = "Comprobante de Pago - " . $concepto . " - " . $data['codigo'];
-    $headers = "MIME-Version: 1.0\r\nContent-Type: text/html; charset=UTF-8\r\n";
+    $headers  = "MIME-Version: 1.0\r\nContent-Type: text/html; charset=UTF-8\r\n";
     $headers .= "From: Tesorería Corisnorte <admisiones@corisnorte.com>\r\n";
 
     $pagoDetalle = ($metodo === 'Dividido') 
-        ? "Efectivo: $".number_format($efectivo,0)." / Transf: $".number_format($transf,0) 
+        ? "Efectivo: $".number_format($efectivo, 0, ',', '.')." / Transf: $".number_format($transf, 0, ',', '.')
         : $metodo;
+
+    // Filas de descuento — solo si es pensión y tiene descuento
+    $filasDescuento = '';
+    if ($esPension && $descuento_pct > 0) {
+        $valorDesc = $subtotal - $total;
+        $filasDescuento = "
+            <tr>
+                <td style='padding-top:10px;'><strong>Subtotal:</strong></td>
+                <td align='right' style='padding-top:10px;'>{$subtotalFmt}</td>
+            </tr>
+            <tr>
+                <td style='color:#27ae60;'><strong>Descuento ({$descuento_pct}%):</strong></td>
+                <td align='right' style='color:#27ae60;'><strong>- $ ".number_format($valorDesc, 0, ',', '.')."</strong></td>
+            </tr>
+            <tr><td colspan='2' style='border-bottom:1px dashed #ccc; padding:4px 0;'></td></tr>
+        ";
+    }
 
     $message = '
     <html>
@@ -165,13 +194,17 @@ function enviarCorreoMensualidad($data, $inst, $referencia, $metodo, $efectivo, 
                                 </div>
                                 
                                 <table width="100%">
-                                    <tr><td><strong>Fecha:</strong></td> <td align="right">'.$fecha.'</td></tr>
-                                    <tr><td><strong>Estudiante:</strong></td> <td align="right">'.htmlspecialchars($data['nombres_completos']).'</td></tr>
-                                    <tr><td><strong>Programa:</strong></td> <td align="right">'.htmlspecialchars($data['programa']).'</td></tr>
+                                    <tr><td><strong>Fecha:</strong></td><td align="right">'.$fecha.'</td></tr>
+                                    <tr><td><strong>Estudiante:</strong></td><td align="right">'.htmlspecialchars($data['nombres_completos']).'</td></tr>
+                                    <tr><td><strong>Programa:</strong></td><td align="right">'.htmlspecialchars($data['programa']).'</td></tr>
                                     <tr><td colspan="2" style="border-bottom:1px dashed #ccc; padding:5px 0;"></td></tr>
-                                    <tr><td style="padding-top:10px;"><strong>Concepto:</strong></td> <td align="right" style="padding-top:10px;">'.$concepto.'</td></tr>
-                                    <tr><td><strong>Método:</strong></td> <td align="right">'.$pagoDetalle.'</td></tr>
-                                    <tr><td style="font-size:20px; padding-top:15px;"><strong>TOTAL:</strong></td> <td align="right" style="font-size:20px; padding-top:15px;"><strong>'.$costoFmt.'</strong></td></tr>
+                                    <tr><td style="padding-top:10px;"><strong>Concepto:</strong></td><td align="right" style="padding-top:10px;">'.$concepto.'</td></tr>
+                                    <tr><td><strong>Método:</strong></td><td align="right">'.$pagoDetalle.'</td></tr>
+                                    '.$filasDescuento.'
+                                    <tr>
+                                        <td style="font-size:20px; padding-top:15px;"><strong>TOTAL:</strong></td>
+                                        <td align="right" style="font-size:20px; padding-top:15px;"><strong>'.$totalFmt.'</strong></td>
+                                    </tr>
                                 </table>
                             </div>
                             <div style="background:#0D09A4; color:#fff; padding:10px; text-align:center; font-size:12px;">
