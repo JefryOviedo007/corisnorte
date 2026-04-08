@@ -2,6 +2,10 @@
 // crear_grupo.php
 // Este archivo maneja la creación de un nuevo grupo académico.
 
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
+
 require_once __DIR__ . "/../../../../config.php";
 
 if (!isset($_SESSION['id'], $_SESSION['rol'])) {
