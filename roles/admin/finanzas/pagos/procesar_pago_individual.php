@@ -121,10 +121,25 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         $pdo->commit();
 
+        // 6. Obtener datos para el recibo POS
+        $sql_ticket = "SELECT p.nombres_completos, p.numero_documento, pag.monto, pag.metodo_pago, pag.created_at, pag.concepto,
+                            s.nombre as sede_nombre, s.direccion as sede_dir, s.telefono as sede_tel, s.correo as sede_email, s.ciudad as sede_ciudad,
+                            i.nombre as inst_nombre, i.direccion as inst_dir
+                    FROM pagos pag
+                    JOIN personas p ON pag.persona_id = p.id
+                    JOIN sedes s ON p.sede_id = s.id
+                    CROSS JOIN institucion i
+                    WHERE pag.id = ?";
+        $stmt_ticket = $pdo->prepare($sql_ticket);
+        $stmt_ticket->execute([$pago_id]);
+        $data_ticket = $stmt_ticket->fetch(PDO::FETCH_ASSOC);
+
         echo json_encode([
-            'status'      => 'success', 
-            'message'     => 'Pago de ' . $concepto_recibido . ' por $' . number_format($monto_final, 0, ',', '.') . ' procesado correctamente.', 
-            'correo_envio' => $data['correo']
+            'status' => 'success',
+            'message' => 'Pago procesado correctamente.',
+            'correo_envio' => $data['correo'],
+            'ticket' => $data_ticket, // <-- Estos son los datos para el recibo
+            'atendido_por' => $_SESSION['nombre'] // <-- Usuario logueado
         ]);
 
     } catch (Exception $e) {
