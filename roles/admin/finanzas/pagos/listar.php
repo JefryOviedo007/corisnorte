@@ -722,48 +722,52 @@ function enviarPago(datos) {
     .then(r => r.json())
     .then(data => {
         if (data.status === 'success') {
-            // Generar ventana de impresión POS
             const t = data.ticket;
-            const atendido = data.atendido_por;
-            
-            const ventana = window.open('', '_blank', 'width=400,height=600');
-            ventana.document.write(`
-                <style>
-                    body { font-family: 'Courier New', monospace; width: 280px; font-size: 13px; line-height: 1.2; }
-                    .center { text-align: center; }
-                    .bold { font-weight: bold; }
-                    .divider { border-bottom: 1px dashed #000; margin: 10px 0; }
-                    table { width: 100%; }
-                </style>
-                <div class="center">
-                    <h4 class="bold">${t.inst_nombre}</h4>
-                    <p>${t.sede_nombre}<br>${t.sede_dir}<br>Tel: ${t.sede_tel}</p>
-                    <div class="divider"></div>
-                    <p class="bold">RECIBO DE CAJA</p>
-                </div>
-                <p>Fecha: ${t.created_at}<br>
-                Estudiante: ${t.nombres_completos}<br>
-                Atendido por: ${atendido}</p>
-                <div class="divider"></div>
-                <table>
-                    <tr><td><strong>Concepto</strong></td><td align="right"><strong>Total</strong></td></tr>
-                    <tr><td>${t.concepto}</td><td align="right">$${new Intl.NumberFormat('es-CO').format(t.monto)}</td></tr>
-                </table>
-                <div class="divider"></div>
-                <div class="center">
-                    <h4 class="bold">TOTAL PAGADO: $${new Intl.NumberFormat('es-CO').format(t.monto)}</h4>
-                    <p style="font-size: 10px;">${t.inst_dir} | ${t.sede_ciudad}<br>${t.sede_email}</p>
-                </div>
-            `);
-            ventana.document.close();
-            ventana.print();
 
+            // Mostramos el modal de éxito
             Swal.fire({
                 title: '¡Pago Registrado!',
-                text: 'Comprobante generado e impreso.',
-                icon: 'success'
-            }).then(() => {
-                document.getElementById('select_grupo').dispatchEvent(new Event('change'));
+                text: 'El pago se procesó correctamente. Haga clic en OK para imprimir el comprobante.',
+                icon: 'success',
+                confirmButtonText: 'OK, Imprimir'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    // La impresión ocurre SOLO después de confirmar el modal
+                    const ventana = window.open('', '_blank', 'width=400,height=600');
+                    ventana.document.write(`
+                        <style>
+                            body { font-family: 'Courier New', monospace; width: 280px; font-size: 13px; line-height: 1.2; }
+                            .center { text-align: center; }
+                            .bold { font-weight: bold; }
+                            .divider { border-bottom: 1px dashed #000; margin: 10px 0; }
+                            table { width: 100%; }
+                        </style>
+                        <div class="center">
+                            <h4 class="bold">${t.inst_nombre}</h4>
+                            <p>${t.sede_nombre}<br>${t.sede_dir}<br>Tel: ${t.sede_tel}</p>
+                            <div class="divider"></div>
+                            <p class="bold">RECIBO DE CAJA</p>
+                        </div>
+                        <p>Fecha: ${t.fecha}<br>
+                        Estudiante: ${t.nombres}<br>
+                        Atendido por: ${t.cajero}</p>
+                        <div class="divider"></div>
+                        <table>
+                            <tr><td><strong>Concepto</strong></td><td align="right"><strong>Total</strong></td></tr>
+                            <tr><td>${t.concepto}</td><td align="right">$${new Intl.NumberFormat('es-CO').format(t.monto)}</td></tr>
+                        </table>
+                        <div class="divider"></div>
+                        <div class="center">
+                            <h4 class="bold">TOTAL PAGADO: $${new Intl.NumberFormat('es-CO').format(t.monto)}</h4>
+                            <p style="font-size: 10px;">${t.sede_ciudad}<br>${t.sede_email}</p>
+                        </div>
+                    `);
+                    ventana.document.close();
+                    ventana.print();
+                    
+                    // Refrescamos la interfaz después de imprimir
+                    document.getElementById('select_grupo').dispatchEvent(new Event('change'));
+                }
             });
         } else {
             Swal.fire('Error', data.message, 'error');
