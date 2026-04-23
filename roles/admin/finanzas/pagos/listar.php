@@ -723,7 +723,7 @@ function enviarPago(datos) {
     .then(data => {
         if (data.status === 'success') {
             const t = data.ticket;
-            const atendido = data.atendido_por;
+            const atendido = data.atendido_por || 'Sistema'; // Captura el usuario logueado
 
             Swal.fire({
                 title: '¡Pago Registrado!',
@@ -733,6 +733,10 @@ function enviarPago(datos) {
             }).then((result) => {
                 if (result.isConfirmed) {
                     const ventana = window.open('', '_blank', 'width=450,height=600');
+                    
+                    // URL de tu logo (Cámbiala por la url exacta)
+                    const urlLogo = "https://corisnorte.com/assets/img/logo.png"; 
+
                     ventana.document.write(`
                         <html>
                         <head>
@@ -740,34 +744,43 @@ function enviarPago(datos) {
                                 @page { margin: 0; }
                                 body { 
                                     font-family: 'Courier New', monospace; 
-                                    width: 300px; /* Ajuste óptimo para papel de 80mm */
+                                    width: 300px; 
                                     margin: 0 auto;
                                     padding: 10px;
-                                    font-size: 13px; 
+                                    font-size: 12px; 
                                     line-height: 1.3; 
                                 }
                                 .center { text-align: center; }
                                 .bold { font-weight: bold; }
                                 .divider { border-bottom: 1px dashed #000; margin: 8px 0; }
+                                .logo-container { text-align: center; margin-bottom: 5px; }
+                                .logo-img { max-width: 140px; height: auto; filter: grayscale(100%); }
                                 table { width: 100%; border-collapse: collapse; }
-                                .total { font-size: 16px; margin-top: 10px; }
+                                .total { font-size: 15px; margin-top: 10px; }
                             </style>
                         </head>
                         <body>
+                            <div class="logo-container">
+                                <img src="${urlLogo}" class="logo-img">
+                            </div>
+                            
                             <div class="center">
-                                <span class="bold" style="font-size: 15px;">${t.inst_nombre}</span><br>
+                                <span class="bold" style="font-size: 14px;">${t.inst_nombre}</span><br>
                                 <span>${t.sede_nombre}</span><br>
                                 <span>${t.sede_dir}</span><br>
                                 <span>Tel: ${t.sede_tel}</span>
                                 <div class="divider"></div>
                                 <span class="bold">RECIBO DE CAJA</span>
                             </div>
+                            
                             <br>
                             <strong>Fecha:</strong> ${t.fecha}<br>
                             <strong>Estudiante:</strong> ${t.nombres}<br>
                             <strong>Documento:</strong> ${t.numero_documento}<br>
                             <strong>Atendido por:</strong> ${atendido}
+                            
                             <div class="divider"></div>
+                            
                             <table>
                                 <tr>
                                     <td class="bold">Concepto</td>
@@ -778,12 +791,15 @@ function enviarPago(datos) {
                                     <td align="right">$${new Intl.NumberFormat('es-CO').format(t.monto)}</td>
                                 </tr>
                             </table>
+                            
                             <div class="divider"></div>
+                            
                             <div class="center">
                                 <span class="bold total">TOTAL PAGADO: $${new Intl.NumberFormat('es-CO').format(t.monto)}</span><br>
                                 <br>
                                 <span style="font-size: 10px;">${t.sede_ciudad} - ${t.sede_email}</span>
                             </div>
+                            
                             <br><br>
                             <div class="center">.</div>
                         </body>
@@ -791,12 +807,12 @@ function enviarPago(datos) {
                     `);
                     ventana.document.close();
                     
-                    // Pequeño delay para asegurar carga de estilos antes de imprimir
+                    // Delay de 800ms para asegurar que la imagen cargue antes de imprimir
                     setTimeout(() => {
                         ventana.print();
                         ventana.close();
                         document.getElementById('select_grupo').dispatchEvent(new Event('change'));
-                    }, 500);
+                    }, 800);
                 }
             });
         } else {
