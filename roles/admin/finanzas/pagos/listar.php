@@ -723,8 +723,8 @@ function enviarPago(datos) {
     .then(data => {
         if (data.status === 'success') {
             const t = data.ticket;
+            const atendido = data.atendido_por;
 
-            // Mostramos el modal de éxito
             Swal.fire({
                 title: '¡Pago Registrado!',
                 text: 'El pago se procesó correctamente. Haga clic en OK para imprimir el comprobante.',
@@ -732,41 +732,71 @@ function enviarPago(datos) {
                 confirmButtonText: 'OK, Imprimir'
             }).then((result) => {
                 if (result.isConfirmed) {
-                    // La impresión ocurre SOLO después de confirmar el modal
-                    const ventana = window.open('', '_blank', 'width=400,height=600');
+                    const ventana = window.open('', '_blank', 'width=450,height=600');
                     ventana.document.write(`
-                        <style>
-                            body { font-family: 'Courier New', monospace; width: 280px; font-size: 13px; line-height: 1.2; }
-                            .center { text-align: center; }
-                            .bold { font-weight: bold; }
-                            .divider { border-bottom: 1px dashed #000; margin: 10px 0; }
-                            table { width: 100%; }
-                        </style>
-                        <div class="center">
-                            <h4 class="bold">${t.inst_nombre}</h4>
-                            <p>${t.sede_nombre}<br>${t.sede_dir}<br>Tel: ${t.sede_tel}</p>
+                        <html>
+                        <head>
+                            <style>
+                                @page { margin: 0; }
+                                body { 
+                                    font-family: 'Courier New', monospace; 
+                                    width: 300px; /* Ajuste óptimo para papel de 80mm */
+                                    margin: 0 auto;
+                                    padding: 10px;
+                                    font-size: 13px; 
+                                    line-height: 1.3; 
+                                }
+                                .center { text-align: center; }
+                                .bold { font-weight: bold; }
+                                .divider { border-bottom: 1px dashed #000; margin: 8px 0; }
+                                table { width: 100%; border-collapse: collapse; }
+                                .total { font-size: 16px; margin-top: 10px; }
+                            </style>
+                        </head>
+                        <body>
+                            <div class="center">
+                                <span class="bold" style="font-size: 15px;">${t.inst_nombre}</span><br>
+                                <span>${t.sede_nombre}</span><br>
+                                <span>${t.sede_dir}</span><br>
+                                <span>Tel: ${t.sede_tel}</span>
+                                <div class="divider"></div>
+                                <span class="bold">RECIBO DE CAJA</span>
+                            </div>
+                            <br>
+                            <strong>Fecha:</strong> ${t.fecha}<br>
+                            <strong>Estudiante:</strong> ${t.nombres}<br>
+                            <strong>Documento:</strong> ${t.numero_documento}<br>
+                            <strong>Atendido por:</strong> ${atendido}
                             <div class="divider"></div>
-                            <p class="bold">RECIBO DE CAJA</p>
-                        </div>
-                        <p>Fecha: ${t.fecha}<br>
-                        Estudiante: ${t.nombres}<br>
-                        Atendido por: ${t.cajero}</p>
-                        <div class="divider"></div>
-                        <table>
-                            <tr><td><strong>Concepto</strong></td><td align="right"><strong>Total</strong></td></tr>
-                            <tr><td>${t.concepto}</td><td align="right">$${new Intl.NumberFormat('es-CO').format(t.monto)}</td></tr>
-                        </table>
-                        <div class="divider"></div>
-                        <div class="center">
-                            <h4 class="bold">TOTAL PAGADO: $${new Intl.NumberFormat('es-CO').format(t.monto)}</h4>
-                            <p style="font-size: 10px;">${t.sede_ciudad}<br>${t.sede_email}</p>
-                        </div>
+                            <table>
+                                <tr>
+                                    <td class="bold">Concepto</td>
+                                    <td align="right" class="bold">Total</td>
+                                </tr>
+                                <tr>
+                                    <td>${t.concepto}</td>
+                                    <td align="right">$${new Intl.NumberFormat('es-CO').format(t.monto)}</td>
+                                </tr>
+                            </table>
+                            <div class="divider"></div>
+                            <div class="center">
+                                <span class="bold total">TOTAL PAGADO: $${new Intl.NumberFormat('es-CO').format(t.monto)}</span><br>
+                                <br>
+                                <span style="font-size: 10px;">${t.sede_ciudad} - ${t.sede_email}</span>
+                            </div>
+                            <br><br>
+                            <div class="center">.</div>
+                        </body>
+                        </html>
                     `);
                     ventana.document.close();
-                    ventana.print();
                     
-                    // Refrescamos la interfaz después de imprimir
-                    document.getElementById('select_grupo').dispatchEvent(new Event('change'));
+                    // Pequeño delay para asegurar carga de estilos antes de imprimir
+                    setTimeout(() => {
+                        ventana.print();
+                        ventana.close();
+                        document.getElementById('select_grupo').dispatchEvent(new Event('change'));
+                    }, 500);
                 }
             });
         } else {
